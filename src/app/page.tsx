@@ -28,7 +28,6 @@ type ApiMessage = {
   content: string;
   created_at: string;
   active_version_id?: string | null;
-  hidden?: boolean;
   versions?: ApiMessageVersion[];
 };
 
@@ -39,7 +38,6 @@ type Message = {
   createdAt: string;
   versions?: MessageVersion[];
   activeVersionId?: string | null;
-  hidden?: boolean;
 };
 
 type Conversation = {
@@ -67,7 +65,6 @@ const normalizeMessages = (apiMessages: ApiMessage[]): Message[] =>
     content: message.content,
     createdAt: message.created_at,
     activeVersionId: message.active_version_id ?? null,
-    hidden: message.hidden ?? false,
     versions: message.versions?.map((version) => ({
       id: version.id,
       content: version.content,
@@ -106,7 +103,6 @@ export default function HomePage() {
   const [isThreadScrolled, setIsThreadScrolled] = useState(false);
   const [isComposerHidden, setIsComposerHidden] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const messagesContainerRef = useRef<HTMLDivElement | null>(null);
 
@@ -225,19 +221,6 @@ export default function HomePage() {
     }
   };
 
-  const applyMessagesResponse = async (
-    response: Response,
-    fallbackError: string
-  ) => {
-    const data = (await response.json()) as { messages?: ApiMessage[]; error?: string };
-    if (!response.ok) {
-      setError(data.error ?? fallbackError);
-      return;
-    }
-    setMessages(normalizeMessages(data.messages ?? []));
-    void refreshConversations();
-  };
-
   const handlePartialRevision = async (
     messageId: string,
     instruction: string
@@ -331,98 +314,6 @@ export default function HomePage() {
     }
   };
 
-  const handleHideMessage = async (messageId: string) => {
-    setIsSending(true);
-    setError(null);
-    try {
-      const response = await fetch(`/api/messages/${messageId}/hide`, {
-        method: "POST",
-      });
-      await applyMessagesResponse(response, "Gagal menyembunyikan pesan.");
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Gagal menyembunyikan pesan."
-      );
-    } finally {
-      setIsSending(false);
-    }
-  };
-
-  const handleUnhideMessage = async (messageId: string) => {
-    setIsSending(true);
-    setError(null);
-    try {
-      const response = await fetch(`/api/messages/${messageId}/unhide`, {
-        method: "POST",
-      });
-      await applyMessagesResponse(response, "Gagal menampilkan pesan.");
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Gagal menampilkan pesan."
-      );
-    } finally {
-      setIsSending(false);
-    }
-  };
-
-  const handleDeleteMessage = async (messageId: string) => {
-    setIsSending(true);
-    setError(null);
-    try {
-      const response = await fetch(`/api/messages/${messageId}`, {
-        method: "DELETE",
-      });
-      await applyMessagesResponse(response, "Gagal menghapus pesan.");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Gagal menghapus pesan.");
-    } finally {
-      setIsSending(false);
-    }
-  };
-
-  const handleLockVersion = async (messageId: string, versionId: string) => {
-    setIsSending(true);
-    setError(null);
-    try {
-      const response = await fetch(
-        `/api/messages/${messageId}/lock-version`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ versionId }),
-        }
-      );
-      await applyMessagesResponse(response, "Gagal mengunci versi.");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Gagal mengunci versi.");
-    } finally {
-      setIsSending(false);
-    }
-  };
-
-  const handleCopyMessage = async (content: string) => {
-    try {
-      await navigator.clipboard.writeText(content);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Gagal menyalin pesan.");
-    }
-  };
-
-  const handleShareMessage = async (content: string) => {
-    if (typeof navigator === "undefined") return;
-    if ("share" in navigator) {
-      try {
-        await navigator.share({ text: content });
-        return;
-      } catch (err) {
-        if (err instanceof Error && err.name === "AbortError") return;
-        setError(err instanceof Error ? err.message : "Gagal share pesan.");
-        return;
-      }
-    }
-    await handleCopyMessage(content);
-  };
-
   const handleScroll = (
     scrollTop: number,
     scrollHeight: number,
@@ -440,7 +331,6 @@ export default function HomePage() {
     setRegenerateTargetId(null);
     setError(null);
     setAutoScroll(false);
-    setIsSidebarOpen(false);
   };
 
   const handleCreateConversation = async () => {
@@ -478,7 +368,7 @@ export default function HomePage() {
   );
 
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-950 text-slate-100">
+    <div className="flex min-h-screen bg-slate-950 text-slate-100">
       <ChatSidebar
         items={memoryItems.map((item) => ({
           id: item.id,
@@ -490,18 +380,15 @@ export default function HomePage() {
         totalCount={conversations.length}
         isSending={isSending}
         isCollapsed={isSidebarCollapsed}
-        isMobileOpen={isSidebarOpen}
         onCreate={handleCreateConversation}
         onSelect={handleSelectConversation}
         onToggleCollapse={() => setIsSidebarCollapsed((prev) => !prev)}
-        onCloseMobile={() => setIsSidebarOpen(false)}
       />
 
-      <div className="flex min-h-0 flex-1 flex-col">
+      <div className="flex flex-1 flex-col">
         <ChatHeader
           title={activeConversation?.title ?? "Asisten penulisan novel"}
           subtitle="Tulis prompt atau bab, dan gunakan revisi sebagian atau regenerate total langsung dari respons."
-          onToggleSidebar={() => setIsSidebarOpen((prev) => !prev)}
         />
 
         <ChatThread
@@ -510,12 +397,6 @@ export default function HomePage() {
           revisionTargetId={revisionTargetId}
           revisionDraft={revisionDraft}
           regenerateTargetId={regenerateTargetId}
-          onCopyMessage={handleCopyMessage}
-          onShareMessage={handleShareMessage}
-          onHideMessage={handleHideMessage}
-          onUnhideMessage={handleUnhideMessage}
-          onDeleteMessage={handleDeleteMessage}
-          onLockVersion={handleLockVersion}
           onOpenRevision={(messageId) => {
             setRevisionTargetId(messageId);
             setRevisionDraft("");

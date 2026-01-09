@@ -12,6 +12,7 @@ services:
       CI: "true"
       WATCHPACK_POLLING: "true"
       CHOKIDAR_USEPOLLING: "true"
+      PNPM_STORE_DIR: /pnpm-store
       BACKEND_URL: http://host.docker.internal:4000
     command: >
       sh -c "if [ ! -f /app/node_modules/.pnpm/lock.yaml ] || [ ! -d /app/frontend/node_modules ]; then pnpm install --frozen-lockfile; fi
@@ -19,8 +20,10 @@ services:
     volumes:
       - ..:/app
       - node_modules:/app/node_modules
+      - pnpm_store_frontend:/pnpm-store
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
 volumes:
   node_modules:
+  pnpm_store_frontend:

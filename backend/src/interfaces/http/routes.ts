@@ -81,4 +81,74 @@ export async function registerRoutes(app: FastifyInstance, services: Services) {
       };
     }
   });
+
+  app.post("/messages/:messageId/hide", async (request, reply) => {
+    const params = request.params as { messageId?: string };
+    if (!params.messageId) {
+      reply.code(400);
+      return { error: "messageId is required" };
+    }
+    const messages = await services.chatService.setMessageHidden({
+      messageId: params.messageId,
+      hidden: true,
+    });
+    return { messages };
+  });
+
+  app.post("/messages/:messageId/unhide", async (request, reply) => {
+    const params = request.params as { messageId?: string };
+    if (!params.messageId) {
+      reply.code(400);
+      return { error: "messageId is required" };
+    }
+    const messages = await services.chatService.setMessageHidden({
+      messageId: params.messageId,
+      hidden: false,
+    });
+    return { messages };
+  });
+
+  app.post("/messages/:messageId/lock-version", async (request, reply) => {
+    const params = request.params as { messageId?: string };
+    const body = request.body as { versionId?: string };
+    if (!params.messageId || !body.versionId) {
+      reply.code(400);
+      return { error: "messageId and versionId are required" };
+    }
+    try {
+      const messages = await services.chatService.lockMessageVersion({
+        messageId: params.messageId,
+        versionId: body.versionId,
+      });
+      return { messages };
+    } catch (error) {
+      reply.code(400);
+      return {
+        error:
+          error instanceof Error
+            ? error.message
+            : "Gagal mengunci versi.",
+      };
+    }
+  });
+
+  app.delete("/messages/:messageId", async (request, reply) => {
+    const params = request.params as { messageId?: string };
+    if (!params.messageId) {
+      reply.code(400);
+      return { error: "messageId is required" };
+    }
+    try {
+      const messages = await services.chatService.deleteMessage(params.messageId);
+      return { messages };
+    } catch (error) {
+      reply.code(400);
+      return {
+        error:
+          error instanceof Error
+            ? error.message
+            : "Gagal menghapus pesan.",
+      };
+    }
+  });
 }

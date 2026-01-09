@@ -48,6 +48,15 @@ export async function migrate() {
         `CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(created_at);`,
       ],
     },
+    {
+      id: "002_add_message_hidden",
+      sql: [
+        `
+        ALTER TABLE messages
+        ADD COLUMN IF NOT EXISTS hidden BOOLEAN NOT NULL DEFAULT FALSE;
+        `,
+      ],
+    },
   ];
 
   for (const migration of migrations) {

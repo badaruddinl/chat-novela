@@ -84,7 +84,51 @@ export class ChatService {
       content: message.content,
       created_at: message.createdAt.toISOString(),
       active_version_id: message.activeVersionId,
+      hidden: message.hidden,
       versions: versionMap.get(message.id) ?? [],
     }));
+  }
+
+  async setMessageHidden(params: {
+    messageId: string;
+    hidden: boolean;
+  }): Promise<ApiMessage[]> {
+    const message = await this.messageRepo.getMessageById(params.messageId);
+    if (!message) {
+      return [];
+    }
+    await this.messageRepo.setMessageHidden(params.messageId, params.hidden);
+    await this.conversationRepo.touchConversation(message.conversationId);
+    return this.listMessages(message.conversationId);
+  }
+
+  async deleteMessage(messageId: string): Promise<ApiMessage[]> {
+    const message = await this.messageRepo.getMessageById(messageId);
+    if (!message) return [];
+    if (message.role !== "assistant") {
+      throw new Error("Hanya pesan assistant yang bisa dihapus.");
+    }
+    const versionCount = await this.messageRepo.countVersions(messageId);
+    if (versionCount <= 1) {
+      throw new Error("Pesan belum direvisi, hanya bisa disembunyikan.");
+    }
+    await this.messageRepo.deleteMessage(messageId);
+    await this.conversationRepo.touchConversation(message.conversationId);
+    return this.listMessages(message.conversationId);
+  }
+
+  async lockMessageVersion(params: {
+    messageId: string;
+    versionId: string;
+  }): Promise<ApiMessage[]> {
+    const message = await this.messageRepo.getMessageById(params.messageId);
+    if (!message) return [];
+    const versionCount = await this.messageRepo.countVersions(params.messageId);
+    if (versionCount <= 1) {
+      throw new Error("Versi belum cukup untuk dikunci.");
+    }
+    await this.messageRepo.lockMessageVersion(params.messageId, params.versionId);
+    await this.conversationRepo.touchConversation(message.conversationId);
+    return this.listMessages(message.conversationId);
   }
 }

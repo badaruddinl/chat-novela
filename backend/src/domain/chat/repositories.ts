@@ -23,6 +23,10 @@ export type MessageRepository = {
   }): Promise<string>;
   insertVersion(messageId: string, content: string): Promise<Version>;
   updateMessageActiveVersion(messageId: string, versionId: string): Promise<void>;
+  lockMessageVersion(messageId: string, versionId: string): Promise<void>;
+  setMessageHidden(messageId: string, hidden: boolean): Promise<void>;
+  deleteMessage(messageId: string): Promise<void>;
+  countVersions(messageId: string): Promise<number>;
   getMessageById(messageId: string): Promise<Message | null>;
   listMessages(conversationId: string): Promise<{
     messages: Message[];

@@ -92,6 +92,7 @@ export class RevisionService {
       content: message.content,
       created_at: message.createdAt.toISOString(),
       active_version_id: message.activeVersionId,
+      hidden: message.hidden,
       versions: versionMap.get(message.id) ?? [],
     }));
   }

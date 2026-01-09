@@ -1,3 +1,4 @@
+import "dotenv/config";
 import Fastify from "fastify";
 import { migrate } from "./infrastructure/db/migrate";
 import { conversationRepository } from "./infrastructure/repositories/conversationRepository";

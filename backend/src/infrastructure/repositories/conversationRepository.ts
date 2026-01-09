@@ -18,18 +18,21 @@ export const conversationRepository: ConversationRepository = {
         (
           SELECT role FROM messages m
           WHERE m.conversation_id = c.id
+            AND m.hidden = FALSE
           ORDER BY m.created_at DESC, m.id DESC
           LIMIT 1
         ) AS last_message_role,
         (
           SELECT content FROM messages m
           WHERE m.conversation_id = c.id
+            AND m.hidden = FALSE
           ORDER BY m.created_at DESC, m.id DESC
           LIMIT 1
         ) AS last_message_content,
         (
           SELECT created_at FROM messages m
           WHERE m.conversation_id = c.id
+            AND m.hidden = FALSE
           ORDER BY m.created_at DESC, m.id DESC
           LIMIT 1
         ) AS last_message_created_at

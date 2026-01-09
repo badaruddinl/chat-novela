@@ -13,6 +13,7 @@ export type Message = {
   role: ChatRole;
   content: string;
   activeVersionId: string | null;
+  hidden: boolean;
   createdAt: Date;
 };
 

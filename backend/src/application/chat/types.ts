@@ -24,5 +24,6 @@ export type ApiMessage = {
   content: string;
   created_at: string;
   active_version_id: string | null;
+  hidden: boolean;
   versions: ApiMessageVersion[];
 };

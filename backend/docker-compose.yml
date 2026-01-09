@@ -1,15 +1,4 @@
 services:
-  db:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_USER: novela
-      POSTGRES_PASSWORD: novela
-      POSTGRES_DB: novela
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-
   api:
     build:
       context: ..
@@ -17,10 +6,10 @@ services:
     env_file:
       - .env
     environment:
-      DATABASE_URL: postgres://novela:novela@db:5432/novela
       CONTENT_ROOT: /app/frontend/src/contents
       CI: "true"
       CHOKIDAR_USEPOLLING: "true"
+      PNPM_STORE_DIR: /pnpm-store
       HOST: 0.0.0.0
       PORT: 4000
     ports:
@@ -31,9 +20,8 @@ services:
     volumes:
       - ..:/app
       - node_modules:/app/node_modules
-    depends_on:
-      - db
+      - pnpm_store_backend:/pnpm-store
 
 volumes:
   node_modules:
-  postgres_data:
+  pnpm_store_backend:

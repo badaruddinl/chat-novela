@@ -20,6 +20,7 @@ export const messageRepository: MessageRepository = {
         role: params.role,
         content: params.content,
         activeVersionId: null,
+        hidden: false,
       })
       .returning();
     return id;
@@ -57,6 +58,60 @@ export const messageRepository: MessageRepository = {
     `);
   },
 
+  async lockMessageVersion(messageId: string, versionId: string): Promise<void> {
+    await db.execute(sql`BEGIN`);
+    try {
+      await db.execute(sql`
+        UPDATE messages
+        SET content = (SELECT content FROM versions WHERE id = ${versionId}),
+            active_version_id = ${versionId}
+        WHERE id = ${messageId}
+      `);
+      await db.execute(sql`
+        DELETE FROM versions
+        WHERE message_id = ${messageId}
+          AND id <> ${versionId}
+      `);
+      await db.execute(sql`COMMIT`);
+    } catch (error) {
+      await db.execute(sql`ROLLBACK`);
+      throw error;
+    }
+  },
+
+  async setMessageHidden(messageId: string, hidden: boolean): Promise<void> {
+    await db
+      .update(messages)
+      .set({ hidden })
+      .where(eq(messages.id, messageId));
+  },
+
+  async deleteMessage(messageId: string): Promise<void> {
+    await db.execute(sql`BEGIN`);
+    try {
+      await db.execute(sql`
+        DELETE FROM versions
+        WHERE message_id = ${messageId}
+      `);
+      await db.execute(sql`
+        DELETE FROM messages
+        WHERE id = ${messageId}
+      `);
+      await db.execute(sql`COMMIT`);
+    } catch (error) {
+      await db.execute(sql`ROLLBACK`);
+      throw error;
+    }
+  },
+
+  async countVersions(messageId: string): Promise<number> {
+    const [countRow] = await db
+      .select({ count: sql<number>`COUNT(1)` })
+      .from(versions)
+      .where(eq(versions.messageId, messageId));
+    return Number(countRow?.count ?? 0);
+  },
+
   async getMessageById(messageId: string): Promise<Message | null> {
     const rows = await db
       .select()
@@ -70,6 +125,7 @@ export const messageRepository: MessageRepository = {
       role: rows[0].role as "user" | "assistant",
       content: rows[0].content,
       activeVersionId: rows[0].activeVersionId ?? null,
+      hidden: rows[0].hidden,
       createdAt: new Date(rows[0].createdAt),
     };
   },
@@ -100,6 +156,7 @@ export const messageRepository: MessageRepository = {
         role: row.role as "user" | "assistant",
         content: row.content,
         activeVersionId: row.activeVersionId ?? null,
+        hidden: row.hidden,
         createdAt: new Date(row.createdAt),
       })),
       versions: versionRows.map((row) => ({
@@ -120,6 +177,7 @@ export const messageRepository: MessageRepository = {
       SELECT role, content
       FROM messages
       WHERE conversation_id = ${conversationId}
+        AND hidden = FALSE
       ORDER BY created_at DESC, id DESC
       LIMIT ${limit}
     `);

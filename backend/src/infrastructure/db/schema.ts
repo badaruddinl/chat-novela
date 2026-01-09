@@ -1,4 +1,4 @@
-import { integer, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { boolean, integer, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 
 export const conversations = pgTable("conversations", {
   id: uuid("id").primaryKey(),
@@ -19,6 +19,7 @@ export const messages = pgTable("messages", {
   role: text("role").notNull(),
   content: text("content").notNull(),
   activeVersionId: uuid("active_version_id"),
+  hidden: boolean("hidden").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: false })
     .defaultNow()
     .notNull(),
