@@ -3,3 +3,8 @@ node_modules/
 .env
 .env.local
 data/app.db
+
+bun.lock
+pnpm-lock.yaml
+package-lock.json
+yarn.lock
