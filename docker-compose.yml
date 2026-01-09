@@ -10,7 +10,13 @@ services:
     environment:
       NODE_ENV: development
       WATCHPACK_POLLING: "true"
+    command: >
+      sh -c "if [ ! -d node_modules ] || [ -z \"$(ls -A node_modules 2>/dev/null)\" ]; then pnpm install; fi
+      && pnpm dev -- -H 0.0.0.0 -p 3000"
     volumes:
       - .:/app
-      - /app/node_modules
+      - node_modules:/app/node_modules
       - ./data:/app/data
+
+volumes:
+  node_modules:

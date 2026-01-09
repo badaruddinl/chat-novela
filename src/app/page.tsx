@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 
 type MessageVersion = {
   id: number;
@@ -21,7 +21,16 @@ export default function HomePage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isSending, setIsSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [revisionTargetId, setRevisionTargetId] = useState<number | null>(null);
+  const [revisionDraft, setRevisionDraft] = useState("");
+  const [regenerateTargetId, setRegenerateTargetId] = useState<number | null>(
+    null
+  );
+  const [autoScroll, setAutoScroll] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const messagesContainerRef = useRef<HTMLDivElement | null>(null);
+  const messageRefs = useRef(new Map<number, HTMLDivElement>());
 
   useEffect(() => {
     void fetch("/api/messages")
@@ -30,22 +39,22 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => {
+    if (!autoScroll) return;
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, autoScroll]);
 
   const memoryItems = useMemo(
     () =>
-      messages
-        .slice(-12)
-        .map((message) => ({
-          id: message.id,
-          role: message.role,
-          preview:
-            message.content.length > 80
-              ? `${message.content.slice(0, 80)}…`
-              : message.content,
-          createdAt: message.createdAt,
-        })),
+      messages.slice(-12).map((message) => ({
+        id: message.id,
+        role: message.role,
+        activeVersionId: message.activeVersionId,
+        preview:
+          message.content.length > 80
+            ? `${message.content.slice(0, 80)}…`
+            : message.content,
+        createdAt: message.createdAt,
+      })),
     [messages]
   );
 
@@ -53,63 +62,127 @@ export default function HomePage() {
     const trimmed = input.trim();
     if (!trimmed) return;
     setIsSending(true);
+    setError(null);
+    setAutoScroll(true);
 
-    const response = await fetch("/api/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ content: trimmed }),
-    });
+    try {
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: trimmed }),
+      });
 
-    const data = await response.json();
-    setMessages(data.messages);
-    setInput("");
-    setIsSending(false);
+      const data = await response.json();
+      if (!response.ok) {
+        setError(data.error ?? "Gagal mengirim pesan.");
+        return;
+      }
+      setMessages(data.messages);
+      setInput("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Gagal mengirim pesan.");
+    } finally {
+      setIsSending(false);
+    }
   };
 
-  const handlePartialRevision = async (messageId: number) => {
-    const instruction = window.prompt("Instruksi revisi sebagian:");
-    if (!instruction) return;
+  const handlePartialRevision = async (
+    messageId: number,
+    instruction: string
+  ) => {
+    const trimmed = instruction.trim();
+    if (!trimmed) return;
     setIsSending(true);
+    setError(null);
+    setAutoScroll(true);
 
-    const response = await fetch("/api/revise", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ messageId, instruction, mode: "partial" }),
-    });
-
-    const data = await response.json();
-    setMessages(data.messages);
-    setIsSending(false);
+    try {
+      const response = await fetch("/api/revise", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messageId,
+          instruction: trimmed,
+          mode: "partial",
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        setError(data.error ?? "Gagal melakukan revisi.");
+        return;
+      }
+      setMessages(data.messages);
+      setRevisionTargetId(null);
+      setRevisionDraft("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Gagal melakukan revisi.");
+    } finally {
+      setIsSending(false);
+    }
   };
 
   const handleRegenerate = async (messageId: number) => {
-    const shouldRegenerate = window.confirm(
-      "Regenerate total? Versi baru akan dibuat."
-    );
-    if (!shouldRegenerate) return;
     setIsSending(true);
+    setError(null);
+    setAutoScroll(true);
 
-    const response = await fetch("/api/revise", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ messageId, mode: "regenerate" }),
-    });
-
-    const data = await response.json();
-    setMessages(data.messages);
-    setIsSending(false);
+    try {
+      const response = await fetch("/api/revise", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messageId, mode: "regenerate" }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        setError(data.error ?? "Gagal melakukan regenerate.");
+        return;
+      }
+      setMessages(data.messages);
+      setRegenerateTargetId(null);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Gagal melakukan regenerate."
+      );
+    } finally {
+      setIsSending(false);
+    }
   };
 
   const handleSwitchVersion = async (messageId: number, versionId: number) => {
     setIsSending(true);
-    const response = await fetch("/api/revise", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ messageId, mode: "switch", versionId }),
-    });
-    const data = await response.json();
-    setMessages(data.messages);
-    setIsSending(false);
+    setError(null);
+    setAutoScroll(true);
+    try {
+      const response = await fetch("/api/revise", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messageId, mode: "switch", versionId }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        setError(data.error ?? "Gagal mengganti versi.");
+        return;
+      }
+      setMessages(data.messages);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Gagal mengganti versi.");
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const handleScroll = () => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+    const bottomOffset =
+      container.scrollHeight - container.scrollTop - container.clientHeight;
+    setAutoScroll(bottomOffset < 120);
+  };
+
+  const handleJumpToMessage = (messageId: number) => {
+    const node = messageRefs.current.get(messageId);
+    if (!node) return;
+    node.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
   return (
@@ -133,20 +206,23 @@ export default function HomePage() {
             </p>
           ) : (
             memoryItems.map((item) => (
-              <div
+              <button
                 key={item.id}
-                className="rounded-xl border border-slate-800 bg-slate-900/60 p-3"
+                type="button"
+                onClick={() => handleJumpToMessage(item.id)}
+                className="w-full rounded-xl border border-slate-800 bg-slate-900/60 p-3 text-left transition hover:border-slate-600 hover:bg-slate-900/80"
               >
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold uppercase text-slate-500">
                     {item.role}
                   </span>
-                  <span className="text-[10px] text-slate-500">
+                  <span className="flex items-center gap-2 text-[10px] text-slate-500">
+                    {item.activeVersionId ? `v${item.activeVersionId}` : ""}
                     {new Date(item.createdAt).toLocaleString("id-ID")}
                   </span>
                 </div>
                 <p className="mt-2 text-sm text-slate-200">{item.preview}</p>
-              </div>
+              </button>
             ))
           )}
         </div>
@@ -168,7 +244,11 @@ export default function HomePage() {
           </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto px-6 py-8">
+        <div
+          ref={messagesContainerRef}
+          onScroll={handleScroll}
+          className="flex-1 overflow-y-auto px-6 py-8"
+        >
           <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
             {messages.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-slate-800 bg-slate-900/40 p-8 text-center text-slate-400">
@@ -180,9 +260,20 @@ export default function HomePage() {
                 return (
                   <div
                     key={message.id}
-                    className={`flex ${isUser ? "justify-end" : "justify-start"}`}
+                    className={`flex ${
+                      isUser ? "justify-end" : "justify-start"
+                    }`}
                   >
-                    <div className="w-full max-w-2xl space-y-4">
+                    <div
+                      ref={(node) => {
+                        if (!node) {
+                          messageRefs.current.delete(message.id);
+                          return;
+                        }
+                        messageRefs.current.set(message.id, node);
+                      }}
+                      className="w-full max-w-2xl space-y-4"
+                    >
                       <div
                         className={`rounded-2xl border px-5 py-4 shadow-sm ${
                           isUser
@@ -193,7 +284,9 @@ export default function HomePage() {
                         <div className="flex items-center justify-between text-xs uppercase tracking-[0.2em] text-slate-500">
                           <span>{message.role}</span>
                           <span>
-                            {new Date(message.createdAt).toLocaleString("id-ID")}
+                            {new Date(message.createdAt).toLocaleString(
+                              "id-ID"
+                            )}
                           </span>
                         </div>
                         <div className="mt-3 space-y-3 text-sm leading-6 text-slate-100">
@@ -225,20 +318,91 @@ export default function HomePage() {
                           </div>
                           <div className="flex flex-wrap gap-3">
                             <button
-                              onClick={() => handlePartialRevision(message.id)}
+                              onClick={() => {
+                                setRevisionTargetId(message.id);
+                                setRevisionDraft("");
+                                setRegenerateTargetId(null);
+                              }}
                               disabled={isSending}
                               className="rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-900 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
                             >
                               Revisi Sebagian
                             </button>
                             <button
-                              onClick={() => handleRegenerate(message.id)}
+                              onClick={() => {
+                                setRegenerateTargetId(message.id);
+                                setRevisionTargetId(null);
+                                setRevisionDraft("");
+                              }}
                               disabled={isSending}
                               className="rounded-full border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:border-slate-500 disabled:cursor-not-allowed disabled:opacity-50"
                             >
                               Regenerate Total
                             </button>
                           </div>
+                          {revisionTargetId === message.id && (
+                            <div className="space-y-2 rounded-xl border border-slate-800 bg-slate-950/70 p-3">
+                              <p className="text-xs uppercase tracking-[0.2em] text-slate-500">
+                                Instruksi Revisi
+                              </p>
+                              <textarea
+                                rows={3}
+                                value={revisionDraft}
+                                onChange={(event) =>
+                                  setRevisionDraft(event.target.value)
+                                }
+                                placeholder="Contoh: rapikan paragraf kedua, kurangi repetisi..."
+                                className="w-full resize-none rounded-xl border border-slate-800 bg-slate-900/60 px-3 py-2 text-sm text-slate-100 focus:border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-300/30"
+                              />
+                              <div className="flex flex-wrap gap-2">
+                                <button
+                                  onClick={() =>
+                                    handlePartialRevision(
+                                      message.id,
+                                      revisionDraft
+                                    )
+                                  }
+                                  disabled={isSending || !revisionDraft.trim()}
+                                  className="rounded-full bg-amber-300 px-4 py-2 text-xs font-semibold text-slate-900 transition hover:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                  Kirim Revisi
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setRevisionTargetId(null);
+                                    setRevisionDraft("");
+                                  }}
+                                  disabled={isSending}
+                                  className="rounded-full border border-slate-700 px-4 py-2 text-xs font-semibold text-slate-200 transition hover:border-slate-500 disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                  Batal
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                          {regenerateTargetId === message.id && (
+                            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-400/40 bg-amber-500/10 p-3">
+                              <p className="text-sm text-amber-100">
+                                Regenerate total akan membuat versi baru.
+                              </p>
+                              <div className="flex flex-wrap gap-2">
+                                <button
+                                  onClick={() => handleRegenerate(message.id)}
+                                  disabled={isSending}
+                                  className="rounded-full bg-amber-300 px-4 py-2 text-xs font-semibold text-slate-900 transition hover:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                  Lanjutkan
+                                </button>
+                                <button
+                                  onClick={() => setRegenerateTargetId(null)}
+                                  disabled={isSending}
+                                  className="rounded-full border border-slate-700 px-4 py-2 text-xs font-semibold text-slate-200 transition hover:border-slate-500 disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                  Batal
+                                </button>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
@@ -259,10 +423,14 @@ export default function HomePage() {
               onChange={(event) => setInput(event.target.value)}
               className="w-full resize-none rounded-2xl border border-slate-800 bg-slate-900/70 px-4 py-3 text-sm text-slate-100 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-400/40"
             />
-            <div className="flex items-center justify-between">
-              <p className="text-xs text-slate-500">
-                Tekan kirim untuk menambahkan prompt ke percakapan.
-              </p>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="text-xs text-slate-500">
+                {error ? (
+                  <span className="text-rose-300">{error}</span>
+                ) : (
+                  "Tekan kirim untuk menambahkan prompt ke percakapan."
+                )}
+              </div>
               <button
                 onClick={sendMessage}
                 disabled={isSending}

@@ -6,9 +6,11 @@ RUN apt-get update \
 
 WORKDIR /app
 
-COPY package.json package-lock.json* ./
-RUN npm install
+RUN corepack enable
+
+COPY package.json pnpm-lock.yaml* ./
+RUN pnpm install --frozen-lockfile
 
 EXPOSE 3000
 
-CMD ["npm", "run", "dev", "--", "-H", "0.0.0.0", "-p", "3000"]
+CMD ["pnpm", "dev", "--", "-H", "0.0.0.0", "-p", "3000"]
