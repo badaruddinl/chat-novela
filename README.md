@@ -1,56 +1,48 @@
-# Novel Chat (Next.js)
+# Novel Chat (Monorepo)
 
 End-to-end demo untuk chat generator novel dengan tombol revisi dan regenerate.
+Frontend (Next.js) dan backend (Fastify + Drizzle + Postgres) berada di satu repo.
 
 ## Fitur
 
 - UI chat seperti ChatGPT
 - Revisi sebagian atau regenerate total per pesan
-- Penyimpanan ke SQLite (database lokal)
+- Penyimpanan ke Postgres
 - Rules + outline otomatis disuntikkan ke prompt
 
 ## Menjalankan
 
-### Lokal
+### Lokal (PNPM workspace)
 
 ```bash
-npm install
-cp .env.example .env
-npm run dev
+pnpm install
+cp backend/.env.example backend/.env
+cp frontend/.env.example frontend/.env
+pnpm dev
 ```
 
-Aplikasi berjalan di `http://localhost:3000`.
+Frontend: `http://localhost:3000`  
+Backend: `http://localhost:4000`
 
-### Docker Compose (tanpa install SQLite di lokal)
+### Docker Compose (semua service)
 
 ```bash
-docker compose up --build
+pnpm docker:all
 ```
 
-Aplikasi berjalan di `http://localhost:3000` dan perubahan file akan otomatis ter-reload.
+Frontend berjalan di `http://localhost:3000`.
 
-## Menjadikan project ini sebagai repo baru
+### Docker Compose terpisah
 
-Gunakan langkah berikut jika ingin memindahkan scaffold ini ke repo berbeda:
+```bash
+pnpm backend:docker
+pnpm frontend:docker
+```
 
-1. Buat repo baru di GitHub (kosong).
-2. Clone repo baru tersebut ke lokal.
-3. Salin folder/folder berikut dari repo ini ke repo baru:
-   - `src/app/`
-   - `src/lib/`
-   - `src/contents/`
-   - `data/` (biarkan `data/.gitkeep` agar folder ikut ke git)
-   - `package.json`, `tsconfig.json`, `next.config.js`, `next-env.d.ts`
-   - `.env.example`, `.gitignore`
-   - `README.md`
-4. Salin juga file aturan cerita yang ingin dipakai:
-   - `rules.md` (aturan wajib)
-   - `outline.md` (alur besar/fase)
-5. Commit dan push ke repo baru.
-
-Dengan begitu, user cukup mengganti `rules.md` dan `outline.md` sesuai cerita baru.
+Backend: `http://localhost:4000`  
+Frontend: `http://localhost:3000`
 
 ## Catatan
 
-- Database lokal tersimpan di `data/app.db`.
-- File `rules.md` dan `outline.md` di repo ini otomatis dipakai sebagai constraints.
+- Konten prompt dibaca dari `frontend/src/contents`.
+- Backend memakai `backend/.env` untuk `CODEX_API_KEY` dan `CODEX_MODEL`.

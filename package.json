@@ -1,28 +1,23 @@
 {
-  "name": "novel-chat",
+  "name": "chat-novela",
   "private": true,
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "next lint"
-  },
-  "dependencies": {
-    "better-sqlite3": "^11.5.0",
-    "next": "^14.2.5",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1"
-  },
-  "devDependencies": {
-    "@types/better-sqlite3": "^7.6.13",
-    "@types/node": "^20.14.9",
-    "@types/react": "^18.3.3",
-    "@types/react-dom": "^18.3.0",
-    "typescript": "^5.5.3",
-    "tailwindcss": "^3.4.10",
-    "postcss": "^8.4.41",
-    "autoprefixer": "^10.4.20"
+    "dev": "pnpm -r --parallel dev",
+    "frontend:dev": "pnpm --filter frontend dev",
+    "backend:dev": "pnpm --filter backend dev",
+    "frontend:docker": "docker compose -f frontend/docker-compose.yml up --build",
+    "backend:docker": "docker compose -f backend/docker-compose.yml up --build",
+    "docker:all": "docker compose -f backend/docker-compose.yml -f frontend/docker-compose.yml up --build",
+    "frontend:docker:up": "docker compose -f frontend/docker-compose.yml up",
+    "backend:docker:up": "docker compose -f backend/docker-compose.yml up",
+    "docker:all:up": "docker compose -f backend/docker-compose.yml -f frontend/docker-compose.yml up",
+    "frontend:docker:down": "docker compose -f frontend/docker-compose.yml down",
+    "backend:docker:down": "docker compose -f backend/docker-compose.yml down",
+    "docker:all:down": "docker compose -f backend/docker-compose.yml -f frontend/docker-compose.yml down",
+    "frontend:docker:clean": "docker compose -f frontend/docker-compose.yml down --rmi all --volumes",
+    "backend:docker:clean": "docker compose -f backend/docker-compose.yml down --rmi all --volumes",
+    "docker:all:clean": "docker compose -f backend/docker-compose.yml -f frontend/docker-compose.yml down --rmi all --volumes"
   }
 }
