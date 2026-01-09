@@ -4,6 +4,7 @@ import {
   getMessageById,
   insertVersion,
   listMessages,
+  touchConversation,
   updateMessageActiveVersion,
 } from "@/lib/db";
 import { generateCompletion } from "@/lib/ai";
@@ -11,10 +12,11 @@ import { buildRevisionPrompt } from "@/lib/prompt";
 
 export async function POST(request: Request) {
   const body = (await request.json()) as {
-    messageId?: number;
+    messageId?: string;
     instruction?: string;
     mode?: "partial" | "regenerate" | "switch";
-    versionId?: number;
+    versionId?: string;
+    conversationId?: string;
   };
 
   if (!body.messageId) {
@@ -32,7 +34,13 @@ export async function POST(request: Request) {
       );
     }
     updateMessageActiveVersion(body.messageId, body.versionId);
-    return NextResponse.json({ messages: listMessages() });
+    const message = getMessageById(body.messageId);
+    const conversationId = message?.conversation_id ?? body.conversationId;
+    if (!conversationId) {
+      return NextResponse.json({ messages: [] });
+    }
+    touchConversation(conversationId);
+    return NextResponse.json({ messages: listMessages(conversationId) });
   }
 
   const message = getMessageById(body.messageId);
@@ -49,7 +57,7 @@ export async function POST(request: Request) {
     body.instruction ?? null,
     mode
   );
-  const context = getConversationContext();
+  const context = getConversationContext(message.conversation_id);
 
   let assistantContent = "";
   try {
@@ -66,6 +74,9 @@ export async function POST(request: Request) {
 
   const version = insertVersion(message.id, assistantContent);
   updateMessageActiveVersion(message.id, version.id);
+  touchConversation(message.conversation_id);
 
-  return NextResponse.json({ messages: listMessages() });
+  return NextResponse.json({
+    messages: listMessages(message.conversation_id),
+  });
 }

@@ -10,7 +10,8 @@ RUN corepack enable
 
 COPY package.json pnpm-lock.yaml* ./
 RUN pnpm install --frozen-lockfile
+RUN pnpm rebuild better-sqlite3 --config.build_from_source=true
 
 EXPOSE 3000
 
-CMD ["pnpm", "dev", "--", "-H", "0.0.0.0", "-p", "3000"]
+CMD ["pnpm", "exec", "next", "dev", "--hostname", "0.0.0.0", "--port", "3000"]

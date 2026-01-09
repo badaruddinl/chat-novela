@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import {
   getConversationContext,
+  getDefaultConversationId,
   insertAssistantMessage,
   insertUserMessage,
   listMessages,
@@ -8,8 +9,15 @@ import {
 import { generateCompletion } from "@/lib/ai";
 
 export async function POST(request: Request) {
-  const body = (await request.json()) as { content?: string };
+  const body = (await request.json()) as {
+    content?: string;
+    conversationId?: string;
+  };
   const content = body.content?.trim();
+  const conversationId =
+    typeof body.conversationId === "string" && body.conversationId.length > 0
+      ? body.conversationId
+      : getDefaultConversationId();
 
   if (!content) {
     return NextResponse.json(
@@ -18,8 +26,8 @@ export async function POST(request: Request) {
     );
   }
 
-  insertUserMessage(content);
-  const context = getConversationContext();
+  insertUserMessage(content, conversationId);
+  const context = getConversationContext(conversationId);
 
   let assistantContent = "";
   try {
@@ -36,7 +44,7 @@ export async function POST(request: Request) {
         : "⚠️ Terjadi kesalahan saat memanggil layanan AI.";
   }
 
-  insertAssistantMessage(assistantContent);
+  insertAssistantMessage(assistantContent, conversationId);
 
-  return NextResponse.json({ messages: listMessages() });
+  return NextResponse.json({ messages: listMessages(conversationId) });
 }
