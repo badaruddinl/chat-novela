@@ -11,6 +11,8 @@ export type ConversationRepository = {
   createConversation(title: string): Promise<string>;
   touchConversation(conversationId: string): Promise<void>;
   updateConversationTitle(conversationId: string, title: string): Promise<void>;
+  setPinned(conversationId: string, pinned: boolean): Promise<void>;
+  deleteConversation(conversationId: string): Promise<void>;
   getConversationById(conversationId: string): Promise<Conversation | null>;
   getDefaultConversationId(): Promise<string>;
 };
@@ -26,6 +28,7 @@ export type MessageRepository = {
   lockMessageVersion(messageId: string, versionId: string): Promise<void>;
   setMessageHidden(messageId: string, hidden: boolean): Promise<void>;
   deleteMessage(messageId: string): Promise<void>;
+  deleteVersion(messageId: string, versionId: string): Promise<void>;
   countVersions(messageId: string): Promise<number>;
   getMessageById(messageId: string): Promise<Message | null>;
   listMessages(conversationId: string): Promise<{

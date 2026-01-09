@@ -8,6 +8,7 @@ type ChatComposerProps = {
   error: string | null;
   isCompact: boolean;
   isHidden: boolean;
+  isEmpty: boolean;
   onChange: (value: string) => void;
   onSend: () => void;
   onToggleHidden: () => void;
@@ -19,35 +20,43 @@ export function ChatComposer({
   error,
   isCompact,
   isHidden,
+  isEmpty,
   onChange,
   onSend,
   onToggleHidden,
 }: ChatComposerProps) {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
-  const maxHeight = 180;
+  const minHeight = 100;
+  const maxHeight = 220;
 
   useEffect(() => {
     const textarea = textareaRef.current;
     if (!textarea) return;
     if (!value.trim()) {
-      textarea.style.height = "";
+      textarea.style.height = `${minHeight}px`;
       textarea.style.overflowY = "hidden";
       return;
     }
     textarea.style.height = "0px";
-    const nextHeight = Math.min(textarea.scrollHeight, maxHeight);
+    const nextHeight = Math.max(
+      minHeight,
+      Math.min(textarea.scrollHeight, maxHeight)
+    );
     textarea.style.height = `${nextHeight}px`;
     textarea.style.overflowY =
       textarea.scrollHeight > maxHeight ? "auto" : "hidden";
   }, [value]);
 
   const wrapperClasses = [
-    "border-t border-slate-800 px-6 transition-all duration-300",
+    "transition-all duration-300",
+    isEmpty
+      ? "absolute left-1/2 top-1/2 w-full max-w-4xl -translate-x-1/2 -translate-y-1/2 px-4 sm:px-6"
+      : "border-t border-slate-800 px-4 sm:px-6",
     isHidden ? "py-3" : isCompact ? "py-4" : "py-6",
   ].join(" ");
 
   return (
-    <footer className={wrapperClasses}>
+    <footer className={`${wrapperClasses} animate-fade-in`}>
       <div
         className={`mx-auto flex w-full max-w-4xl flex-col ${
           isCompact && !isHidden ? "gap-3" : "gap-4"
@@ -55,13 +64,15 @@ export function ChatComposer({
       >
         <div className="flex items-center justify-between text-xs text-slate-500">
           <span>{isHidden ? "Composer disembunyikan." : "Tulis prompt Anda."}</span>
-          <button
-            type="button"
-            onClick={onToggleHidden}
-            className="rounded-full border border-slate-700 px-3 py-1 text-[11px] font-semibold text-slate-200 transition hover:border-slate-500"
-          >
-            {isHidden ? "Tampilkan" : "Sembunyikan"}
-          </button>
+          {!isEmpty && (
+            <button
+              type="button"
+              onClick={onToggleHidden}
+              className="rounded-full border border-slate-700 px-3 py-1 text-[11px] font-semibold text-slate-200 transition hover:border-slate-500"
+            >
+              {isHidden ? "Tampilkan" : "Sembunyikan"}
+            </button>
+          )}
         </div>
         {!isHidden && (
           <>

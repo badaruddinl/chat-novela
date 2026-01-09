@@ -72,6 +72,12 @@ export const messageRepository: MessageRepository = {
         WHERE message_id = ${messageId}
           AND id <> ${versionId}
       `);
+      await db.execute(sql`
+        UPDATE versions
+        SET version_number = 1
+        WHERE message_id = ${messageId}
+          AND id = ${versionId}
+      `);
       await db.execute(sql`COMMIT`);
     } catch (error) {
       await db.execute(sql`ROLLBACK`);
@@ -97,6 +103,50 @@ export const messageRepository: MessageRepository = {
         DELETE FROM messages
         WHERE id = ${messageId}
       `);
+      await db.execute(sql`COMMIT`);
+    } catch (error) {
+      await db.execute(sql`ROLLBACK`);
+      throw error;
+    }
+  },
+
+  async deleteVersion(messageId: string, versionId: string): Promise<void> {
+    await db.execute(sql`BEGIN`);
+    try {
+      await db.execute(sql`
+        DELETE FROM versions
+        WHERE id = ${versionId}
+          AND message_id = ${messageId}
+      `);
+      const remaining = await db.execute(sql`
+        SELECT id, content
+        FROM versions
+        WHERE message_id = ${messageId}
+        ORDER BY version_number DESC
+        LIMIT 1
+      `);
+      if (remaining.rows[0]) {
+        const nextId = remaining.rows[0].id as string;
+        const nextContent = remaining.rows[0].content as string;
+        await db.execute(sql`
+          UPDATE versions
+          SET version_number = 1
+          WHERE message_id = ${messageId}
+            AND id = ${nextId}
+        `);
+        await db.execute(sql`
+          UPDATE messages
+          SET content = ${nextContent},
+              active_version_id = ${nextId}
+          WHERE id = ${messageId}
+        `);
+      } else {
+        await db.execute(sql`
+          UPDATE messages
+          SET active_version_id = NULL
+          WHERE id = ${messageId}
+        `);
+      }
       await db.execute(sql`COMMIT`);
     } catch (error) {
       await db.execute(sql`ROLLBACK`);

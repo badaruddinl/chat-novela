@@ -57,6 +57,15 @@ export async function migrate() {
         `,
       ],
     },
+    {
+      id: "003_add_conversation_pinned",
+      sql: [
+        `
+        ALTER TABLE conversations
+        ADD COLUMN IF NOT EXISTS pinned BOOLEAN NOT NULL DEFAULT FALSE;
+        `,
+      ],
+    },
   ];
 
   for (const migration of migrations) {

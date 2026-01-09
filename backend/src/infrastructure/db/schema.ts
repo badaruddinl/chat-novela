@@ -9,6 +9,7 @@ export const conversations = pgTable("conversations", {
   updatedAt: timestamp("updated_at", { withTimezone: false })
     .defaultNow()
     .notNull(),
+  pinned: boolean("pinned").notNull().default(false),
 });
 
 export const messages = pgTable("messages", {

@@ -11,11 +11,14 @@ const createConversationRepo = (): ConversationRepository => ({
   createConversation: vi.fn(async () => "conv-1"),
   touchConversation: vi.fn(async () => {}),
   updateConversationTitle: vi.fn(async () => {}),
+  setPinned: vi.fn(async () => {}),
+  deleteConversation: vi.fn(async () => {}),
   getConversationById: vi.fn(async () => ({
     id: "conv-1",
     title: "Percakapan Baru",
     createdAt: new Date(),
     updatedAt: new Date(),
+    pinned: false,
   })),
   getDefaultConversationId: vi.fn(async () => "conv-1"),
 });
@@ -30,6 +33,11 @@ const createMessageRepo = (): MessageRepository => ({
     createdAt: new Date(),
   })),
   updateMessageActiveVersion: vi.fn(async () => {}),
+  lockMessageVersion: vi.fn(async () => {}),
+  setMessageHidden: vi.fn(async () => {}),
+  deleteMessage: vi.fn(async () => {}),
+  deleteVersion: vi.fn(async () => {}),
+  countVersions: vi.fn(async () => 1),
   getMessageById: vi.fn(async () => null),
   listMessages: vi.fn(async () => ({
     messages: [
@@ -39,6 +47,7 @@ const createMessageRepo = (): MessageRepository => ({
         role: "user",
         content: "hello",
         activeVersionId: null,
+        hidden: false,
         createdAt: new Date(),
       },
     ],
@@ -61,11 +70,11 @@ describe("ChatService", () => {
     const llmClient = createLlmClient();
 
     const service = new ChatService(conversationRepo, messageRepo, llmClient);
-    const messages = await service.sendMessage({
+    const result = await service.sendMessage({
       content: "Judul cerita\nDetail tambahan",
     });
 
-    expect(messages).toHaveLength(1);
+    expect(result.messages).toHaveLength(1);
     expect(conversationRepo.updateConversationTitle).toHaveBeenCalledWith(
       "conv-1",
       "Judul cerita"

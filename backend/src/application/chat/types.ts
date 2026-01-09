@@ -5,6 +5,7 @@ export type ApiConversation = {
   title: string;
   updated_at: string;
   created_at: string;
+  pinned: boolean;
   last_message_role: ChatRole | null;
   last_message_content: string | null;
   last_message_created_at: string | null;

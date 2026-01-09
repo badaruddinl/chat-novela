@@ -12,9 +12,10 @@ export class ChatService {
   async sendMessage(params: {
     content: string;
     conversationId?: string;
-  }): Promise<ApiMessage[]> {
+  }): Promise<{ messages: ApiMessage[]; conversationId: string }> {
     const conversationId =
-      params.conversationId ?? (await this.conversationRepo.getDefaultConversationId());
+      params.conversationId ??
+      (await this.conversationRepo.createConversation("Percakapan Baru"));
 
     const count = await this.messageRepo.countMessages(conversationId);
     const conversation = await this.conversationRepo.getConversationById(
@@ -60,7 +61,7 @@ export class ChatService {
     await this.messageRepo.updateMessageActiveVersion(assistantMessageId, version.id);
     await this.conversationRepo.touchConversation(conversationId);
 
-    return this.listMessages(conversationId);
+    return { messages: await this.listMessages(conversationId), conversationId };
   }
 
   async listMessages(conversationId: string): Promise<ApiMessage[]> {
@@ -108,11 +109,39 @@ export class ChatService {
     if (message.role !== "assistant") {
       throw new Error("Hanya pesan assistant yang bisa dihapus.");
     }
-    const versionCount = await this.messageRepo.countVersions(messageId);
-    if (versionCount <= 1) {
-      throw new Error("Pesan belum direvisi, hanya bisa disembunyikan.");
+    const { messages } = await this.messageRepo.listMessages(
+      message.conversationId
+    );
+    const lastAssistant = [...messages]
+      .reverse()
+      .find((item) => item.role === "assistant");
+    if (!lastAssistant || lastAssistant.id !== messageId) {
+      throw new Error("Hanya respons terakhir yang bisa dihapus.");
     }
+    const targetIndex = messages.findIndex((item) => item.id === messageId);
+    const previous = targetIndex > 0 ? messages[targetIndex - 1] : null;
     await this.messageRepo.deleteMessage(messageId);
+    if (previous?.role === "user") {
+      await this.messageRepo.deleteMessage(previous.id);
+    }
+    await this.conversationRepo.touchConversation(message.conversationId);
+    return this.listMessages(message.conversationId);
+  }
+
+  async deleteMessageVersion(params: {
+    messageId: string;
+    versionId: string;
+  }): Promise<ApiMessage[]> {
+    const message = await this.messageRepo.getMessageById(params.messageId);
+    if (!message) return [];
+    if (message.role !== "assistant") {
+      throw new Error("Hanya versi respons assistant yang bisa dihapus.");
+    }
+    const versionCount = await this.messageRepo.countVersions(params.messageId);
+    if (versionCount <= 1) {
+      throw new Error("Versi tidak cukup untuk dihapus.");
+    }
+    await this.messageRepo.deleteVersion(params.messageId, params.versionId);
     await this.conversationRepo.touchConversation(message.conversationId);
     return this.listMessages(message.conversationId);
   }

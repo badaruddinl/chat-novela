@@ -5,6 +5,7 @@ export type Conversation = {
   title: string;
   createdAt: Date;
   updatedAt: Date;
+  pinned: boolean;
 };
 
 export type Message = {
@@ -30,6 +31,7 @@ export type ConversationSummary = {
   title: string;
   createdAt: Date;
   updatedAt: Date;
+  pinned: boolean;
   lastMessageRole: ChatRole | null;
   lastMessageContent: string | null;
   lastMessageCreatedAt: Date | null;

@@ -43,11 +43,11 @@ export async function registerRoutes(app: FastifyInstance, services: Services) {
       reply.code(400);
       return { error: "Content is required." };
     }
-    const messages = await services.chatService.sendMessage({
+    const result = await services.chatService.sendMessage({
       content,
       conversationId: body.conversationId,
     });
-    return { messages };
+    return { messages: result.messages, conversationId: result.conversationId };
   });
 
   app.post("/revise", async (request, reply) => {
@@ -150,5 +150,70 @@ export async function registerRoutes(app: FastifyInstance, services: Services) {
             : "Gagal menghapus pesan.",
       };
     }
+  });
+
+  app.delete(
+    "/messages/:messageId/versions/:versionId",
+    async (request, reply) => {
+      const params = request.params as {
+        messageId?: string;
+        versionId?: string;
+      };
+      if (!params.messageId || !params.versionId) {
+        reply.code(400);
+        return { error: "messageId and versionId are required" };
+      }
+      try {
+        const messages = await services.chatService.deleteMessageVersion({
+          messageId: params.messageId,
+          versionId: params.versionId,
+        });
+        return { messages };
+      } catch (error) {
+        reply.code(400);
+        return {
+          error:
+            error instanceof Error
+              ? error.message
+              : "Gagal menghapus versi.",
+        };
+      }
+    }
+  );
+
+  app.post("/conversations/:conversationId/pin", async (request, reply) => {
+    const params = request.params as { conversationId?: string };
+    if (!params.conversationId) {
+      reply.code(400);
+      return { error: "conversationId is required" };
+    }
+    await services.conversationService.setPinned({
+      conversationId: params.conversationId,
+      pinned: true,
+    });
+    return { ok: true };
+  });
+
+  app.post("/conversations/:conversationId/unpin", async (request, reply) => {
+    const params = request.params as { conversationId?: string };
+    if (!params.conversationId) {
+      reply.code(400);
+      return { error: "conversationId is required" };
+    }
+    await services.conversationService.setPinned({
+      conversationId: params.conversationId,
+      pinned: false,
+    });
+    return { ok: true };
+  });
+
+  app.delete("/conversations/:conversationId", async (request, reply) => {
+    const params = request.params as { conversationId?: string };
+    if (!params.conversationId) {
+      reply.code(400);
+      return { error: "conversationId is required" };
+    }
+    await services.conversationService.deleteConversation(params.conversationId);
+    return { ok: true };
   });
 }

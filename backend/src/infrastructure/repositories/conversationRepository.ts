@@ -15,6 +15,7 @@ export const conversationRepository: ConversationRepository = {
         c.title,
         c.created_at,
         c.updated_at,
+        c.pinned,
         (
           SELECT role FROM messages m
           WHERE m.conversation_id = c.id
@@ -37,7 +38,7 @@ export const conversationRepository: ConversationRepository = {
           LIMIT 1
         ) AS last_message_created_at
       FROM conversations c
-      ORDER BY c.updated_at DESC, c.id DESC
+      ORDER BY c.pinned DESC, c.updated_at DESC, c.id DESC
     `);
 
     return result.rows.map((row) => ({
@@ -45,6 +46,7 @@ export const conversationRepository: ConversationRepository = {
       title: row.title as string,
       createdAt: new Date(row.created_at as string),
       updatedAt: new Date(row.updated_at as string),
+      pinned: Boolean(row.pinned),
       lastMessageRole: row.last_message_role as
         | "user"
         | "assistant"
@@ -79,6 +81,37 @@ export const conversationRepository: ConversationRepository = {
       .where(eq(conversations.id, conversationId));
   },
 
+  async setPinned(conversationId: string, pinned: boolean): Promise<void> {
+    await db
+      .update(conversations)
+      .set({ pinned, updatedAt: new Date() })
+      .where(eq(conversations.id, conversationId));
+  },
+
+  async deleteConversation(conversationId: string): Promise<void> {
+    await db.execute(sql`BEGIN`);
+    try {
+      await db.execute(sql`
+        DELETE FROM versions
+        WHERE message_id IN (
+          SELECT id FROM messages WHERE conversation_id = ${conversationId}
+        )
+      `);
+      await db.execute(sql`
+        DELETE FROM messages
+        WHERE conversation_id = ${conversationId}
+      `);
+      await db.execute(sql`
+        DELETE FROM conversations
+        WHERE id = ${conversationId}
+      `);
+      await db.execute(sql`COMMIT`);
+    } catch (error) {
+      await db.execute(sql`ROLLBACK`);
+      throw error;
+    }
+  },
+
   async getConversationById(conversationId: string): Promise<Conversation | null> {
     const rows = await db
       .select()
@@ -91,6 +124,7 @@ export const conversationRepository: ConversationRepository = {
       title: rows[0].title,
       createdAt: new Date(rows[0].createdAt),
       updatedAt: new Date(rows[0].updatedAt),
+      pinned: rows[0].pinned,
     };
   },
 
