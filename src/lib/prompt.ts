@@ -1,8 +1,8 @@
 import fs from "fs";
 import path from "path";
 
-const RULES_PATH = path.join(process.cwd(), "rules.md");
-const OUTLINE_PATH = path.join(process.cwd(), "outline.md");
+const RULES_PATH = path.join(process.cwd(), "content/rules.md");
+const OUTLINE_PATH = path.join(process.cwd(), "content/outline.md");
 
 export function loadRules() {
   if (fs.existsSync(RULES_PATH)) {
