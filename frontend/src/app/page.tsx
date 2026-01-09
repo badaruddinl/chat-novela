@@ -95,6 +95,8 @@ const normalizeConversations = (
 
 const getDraftKey = (conversationId: string | null) =>
   `chat-draft:${conversationId ?? "new"}`;
+const lastConversationKey = "chat-last-conversation";
+const lastConversationModeKey = "chat-last-mode";
 
 export default function HomePage() {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -115,6 +117,7 @@ export default function HomePage() {
   const [isComposerHidden, setIsComposerHidden] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [hasLoaded, setHasLoaded] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const messagesContainerRef = useRef<HTMLDivElement | null>(null);
 
@@ -140,10 +143,29 @@ export default function HomePage() {
   };
 
   useEffect(() => {
+    const storedMode =
+      typeof window !== "undefined"
+        ? localStorage.getItem(lastConversationModeKey)
+        : null;
+    const storedId =
+      typeof window !== "undefined"
+        ? localStorage.getItem(lastConversationKey)
+        : null;
+    if (storedMode === "conversation" && storedId) {
+      setActiveConversationId(storedId);
+    } else {
+      setActiveConversationId(null);
+    }
+    setHasLoaded(true);
+
     void refreshConversations().then((data) => {
-      if (data.length > 0) {
-        setActiveConversationId(data[0].id);
+      if (storedMode !== "conversation" || !storedId) {
+        return;
       }
+      if (!data.some((item) => item.id === storedId)) {
+        return;
+      }
+      setActiveConversationId(storedId);
     });
   }, []);
 
@@ -173,6 +195,17 @@ export default function HomePage() {
     }
     sessionStorage.setItem(key, input);
   }, [input, activeConversationId]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!hasLoaded) return;
+    if (activeConversationId) {
+      localStorage.setItem(lastConversationKey, activeConversationId);
+      localStorage.setItem(lastConversationModeKey, "conversation");
+      return;
+    }
+    localStorage.setItem(lastConversationModeKey, "draft");
+  }, [activeConversationId, hasLoaded]);
 
   useEffect(() => {
     if (!autoScroll) return;
@@ -610,6 +643,8 @@ export default function HomePage() {
         {!isDraftConversation && (
           <ChatHeader
             title={activeConversation?.title ?? "Chat Baru"}
+            subtitle=""
+            key={1}
             // subtitle={
             //   isDraftConversation
             //     ? "Mulai dengan menulis prompt pertama Anda."
