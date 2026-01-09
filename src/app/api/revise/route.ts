@@ -51,10 +51,18 @@ export async function POST(request: Request) {
   );
   const context = getConversationContext();
 
-  const assistantContent = await generateCompletion([
-    ...context.map((item) => ({ role: item.role, content: item.content })),
-    { role: "user", content: prompt },
-  ]);
+  let assistantContent = "";
+  try {
+    assistantContent = await generateCompletion([
+      ...context.map((item) => ({ role: item.role, content: item.content })),
+      { role: "user", content: prompt },
+    ]);
+  } catch (error) {
+    assistantContent =
+      error instanceof Error
+        ? `⚠️ ${error.message}`
+        : "⚠️ Terjadi kesalahan saat memanggil layanan AI.";
+  }
 
   const version = insertVersion(message.id, assistantContent);
   updateMessageActiveVersion(message.id, version.id);
