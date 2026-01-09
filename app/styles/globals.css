@@ -1,0 +1,129 @@
+:root {
+  color-scheme: light;
+  font-family: "Inter", system-ui, sans-serif;
+  background: #f5f5f7;
+  color: #1f1f22;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+.container {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 32px 20px 48px;
+}
+
+.chat {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.chat-header h1 {
+  margin: 0 0 8px;
+}
+
+.chat-window {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 20px;
+  min-height: 320px;
+  box-shadow: 0 10px 30px rgba(12, 12, 13, 0.08);
+}
+
+.message {
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid #e2e2e8;
+  background: #fafafa;
+}
+
+.message-user {
+  background: #e8f0ff;
+  border-color: #c5d6ff;
+}
+
+.message-assistant {
+  background: #fff6e6;
+  border-color: #ffd9a6;
+}
+
+.message-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #6b6b75;
+  margin-bottom: 12px;
+}
+
+.message-content p {
+  margin: 0 0 12px;
+  line-height: 1.6;
+}
+
+.message-content p:last-child {
+  margin-bottom: 0;
+}
+
+.message-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.version-tabs {
+  display: flex;
+  gap: 8px;
+}
+
+.version-tabs button,
+.revision-buttons button,
+.chat-input button {
+  border: none;
+  border-radius: 999px;
+  padding: 8px 16px;
+  background: #1f1f22;
+  color: #ffffff;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.version-tabs button.active {
+  background: #ff8b00;
+}
+
+.version-tabs button:disabled,
+.revision-buttons button:disabled,
+.chat-input button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.chat-input {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.chat-input textarea {
+  width: 100%;
+  border-radius: 12px;
+  padding: 12px;
+  border: 1px solid #d8d8df;
+  font-family: inherit;
+  resize: vertical;
+}
