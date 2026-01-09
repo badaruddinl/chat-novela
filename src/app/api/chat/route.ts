@@ -21,12 +21,20 @@ export async function POST(request: Request) {
   insertUserMessage(content);
   const context = getConversationContext();
 
-  const assistantContent = await generateCompletion(
-    context.map((message) => ({
-      role: message.role,
-      content: message.content,
-    }))
-  );
+  let assistantContent = "";
+  try {
+    assistantContent = await generateCompletion(
+      context.map((message) => ({
+        role: message.role,
+        content: message.content,
+      }))
+    );
+  } catch (error) {
+    assistantContent =
+      error instanceof Error
+        ? `⚠️ ${error.message}`
+        : "⚠️ Terjadi kesalahan saat memanggil layanan AI.";
+  }
 
   insertAssistantMessage(assistantContent);
 
