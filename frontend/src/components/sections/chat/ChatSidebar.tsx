@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { ConversationListItem } from "@/components/chat/ConversationListItem";
@@ -155,6 +156,13 @@ export function ChatSidebar({
             >
               + Chat Baru
             </Button>
+            <Link
+              href="/import"
+              className="mt-2 inline-flex w-full items-center justify-center rounded-full border border-slate-700 px-4 py-2 text-xs font-semibold text-slate-200 transition hover:border-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-600/40 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
+            >
+              <Icon icon="solar:upload-minimalistic-linear" className="mr-2 text-base" />
+              Import Context
+            </Link>
             <div className="mt-4 flex-1 overflow-y-auto pr-1 sm:mt-6">
               {items.length === 0 ? (
                 <p className="text-sm text-slate-400">

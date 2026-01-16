@@ -63,6 +63,36 @@ const createLlmClient = (): LlmClient => ({
   generate: vi.fn(async () => "assistant response"),
 });
 
+const createProjectService = () => ({
+  getProject: vi.fn(async () => ({
+    bible: {
+      project: "Test Project",
+      world_state: { magic: "Hard", factions: ["One"] },
+      emotional_tone: ["Dark"],
+      pacing: "Fast",
+      generation_settings: { min_word_count: 100 },
+      characters: [
+        {
+          id: "c1",
+          name: "Hero",
+          age: 20,
+          role: "Protag",
+          hobby: "none",
+          first_app: "ch1",
+          status: "Active",
+          relationships: {},
+        },
+      ],
+    },
+    outline: null,
+    summary: "A summary.",
+  })),
+  chat: vi.fn(),
+  generateStorySegment: vi.fn(),
+  analyzeDocument: vi.fn(),
+  initializeProject: vi.fn(),
+});
+
 describe("ChatService", () => {
   it("creates assistant response and updates conversation title on first message", async () => {
     const conversationRepo = createConversationRepo();
@@ -82,5 +112,29 @@ describe("ChatService", () => {
     expect(messageRepo.insertMessage).toHaveBeenCalled();
     expect(messageRepo.insertVersion).toHaveBeenCalled();
     expect(messageRepo.updateMessageActiveVersion).toHaveBeenCalled();
+  });
+
+  it("includes project context in system prompt when projectService is provided", async () => {
+    const conversationRepo = createConversationRepo();
+    const messageRepo = createMessageRepo();
+    const llmClient = createLlmClient();
+    const projectService = createProjectService();
+
+    const service = new ChatService(
+      conversationRepo,
+      messageRepo,
+      llmClient,
+      projectService as any
+    );
+    await service.sendMessage({ content: "test" });
+
+    expect(llmClient.generate).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.stringContaining("STORY CONTEXT")
+    );
+    expect(llmClient.generate).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.stringContaining("SUMMARY:\nA summary.")
+    );
   });
 });
