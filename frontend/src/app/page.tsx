@@ -1,11 +1,9 @@
 "use client";
 
 import { useState, useEffect, useMemo, useRef } from "react";
-import { Icon } from "@iconify/react";
 import {
   ChatComposer,
   ChatHeader,
-  NewChatComposer,
   ChatSidebar,
   ChatThread,
 } from "@/components/sections/chat";
@@ -30,8 +28,8 @@ type ApiMessage = {
   content: string;
   created_at: string;
   active_version_id?: string | null;
-  hidden?: boolean;
   versions?: ApiMessageVersion[];
+  hidden?: boolean;
 };
 
 type Message = {
@@ -48,20 +46,20 @@ type Conversation = {
   id: string;
   title: string;
   updatedAt: string;
-  pinned: boolean;
   lastMessageRole: "user" | "assistant" | null;
   lastMessageContent: string | null;
   lastMessageCreatedAt: string | null;
+  pinned: boolean;
 };
 
 type ApiConversation = {
   id: string;
   title: string;
   updated_at: string;
-  pinned: boolean;
   last_message_role: "user" | "assistant" | null;
   last_message_content: string | null;
   last_message_created_at: string | null;
+  pinned: boolean;
 };
 
 const normalizeMessages = (apiMessages: ApiMessage[]): Message[] =>
@@ -87,16 +85,11 @@ const normalizeConversations = (
     id: conversation.id,
     title: conversation.title,
     updatedAt: conversation.updated_at,
-    pinned: conversation.pinned,
     lastMessageRole: conversation.last_message_role,
     lastMessageContent: conversation.last_message_content,
     lastMessageCreatedAt: conversation.last_message_created_at,
+    pinned: conversation.pinned ?? false,
   }));
-
-const getDraftKey = (conversationId: string | null) =>
-  `chat-draft:${conversationId ?? "new"}`;
-const lastConversationKey = "chat-last-conversation";
-const lastConversationModeKey = "chat-last-mode";
 
 export default function HomePage() {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -117,7 +110,6 @@ export default function HomePage() {
   const [isComposerHidden, setIsComposerHidden] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [hasLoaded, setHasLoaded] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const messagesContainerRef = useRef<HTMLDivElement | null>(null);
 
@@ -143,29 +135,10 @@ export default function HomePage() {
   };
 
   useEffect(() => {
-    const storedMode =
-      typeof window !== "undefined"
-        ? localStorage.getItem(lastConversationModeKey)
-        : null;
-    const storedId =
-      typeof window !== "undefined"
-        ? localStorage.getItem(lastConversationKey)
-        : null;
-    if (storedMode === "conversation" && storedId) {
-      setActiveConversationId(storedId);
-    } else {
-      setActiveConversationId(null);
-    }
-    setHasLoaded(true);
-
     void refreshConversations().then((data) => {
-      if (storedMode !== "conversation" || !storedId) {
-        return;
+      if (data.length > 0) {
+        setActiveConversationId(data[0].id);
       }
-      if (!data.some((item) => item.id === storedId)) {
-        return;
-      }
-      setActiveConversationId(storedId);
     });
   }, []);
 
@@ -175,37 +148,6 @@ export default function HomePage() {
       .then((res) => res.json())
       .then((data) => setMessages(normalizeMessages(data.messages)));
   }, [activeConversationId]);
-
-  useEffect(() => {
-    const key = getDraftKey(activeConversationId);
-    const stored =
-      typeof window !== "undefined" ? sessionStorage.getItem(key) : null;
-    setInput(stored ?? "");
-    if (!activeConversationId) {
-      setMessages([]);
-    }
-  }, [activeConversationId]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const key = getDraftKey(activeConversationId);
-    if (input.trim().length === 0) {
-      sessionStorage.removeItem(key);
-      return;
-    }
-    sessionStorage.setItem(key, input);
-  }, [input, activeConversationId]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (!hasLoaded) return;
-    if (activeConversationId) {
-      localStorage.setItem(lastConversationKey, activeConversationId);
-      localStorage.setItem(lastConversationModeKey, "conversation");
-      return;
-    }
-    localStorage.setItem(lastConversationModeKey, "draft");
-  }, [activeConversationId, hasLoaded]);
 
   useEffect(() => {
     if (!autoScroll) return;
@@ -236,6 +178,28 @@ export default function HomePage() {
   const sendMessage = async () => {
     const trimmed = input.trim();
     if (!trimmed) return;
+    let targetConversationId = activeConversationId;
+    if (!targetConversationId) {
+      try {
+        const response = await fetch("/api/conversations", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ title: "Percakapan Baru" }),
+        });
+        const data = await response.json();
+        if (!response.ok) {
+          setError(data.error ?? "Gagal membuat percakapan baru.");
+          return;
+        }
+        targetConversationId = data.conversationId;
+        setActiveConversationId(targetConversationId);
+      } catch (err) {
+        setError(
+          err instanceof Error ? err.message : "Gagal membuat percakapan baru."
+        );
+        return;
+      }
+    }
     setIsSending(true);
     setError(null);
     setAutoScroll(true);
@@ -246,52 +210,23 @@ export default function HomePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           content: trimmed,
-          conversationId: activeConversationId ?? undefined,
+          conversationId: targetConversationId,
         }),
       });
 
-      const data = (await response.json()) as {
-        messages: ApiMessage[];
-        conversationId?: string;
-        error?: string;
-      };
+      const data = await response.json();
       if (!response.ok) {
         setError(data.error ?? "Gagal mengirim pesan.");
         return;
       }
-      const nextConversationId =
-        activeConversationId ?? data.conversationId ?? null;
-      if (!activeConversationId && nextConversationId) {
-        setActiveConversationId(nextConversationId);
-      }
       setMessages(normalizeMessages(data.messages));
       setInput("");
-      if (nextConversationId) {
-        sessionStorage.removeItem(getDraftKey(nextConversationId));
-      }
-      sessionStorage.removeItem(getDraftKey(null));
       void refreshConversations();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Gagal mengirim pesan.");
     } finally {
       setIsSending(false);
     }
-  };
-
-  const applyMessagesResponse = async (
-    response: Response,
-    fallbackError: string
-  ) => {
-    const data = (await response.json()) as {
-      messages?: ApiMessage[];
-      error?: string;
-    };
-    if (!response.ok) {
-      setError(data.error ?? fallbackError);
-      return;
-    }
-    setMessages(normalizeMessages(data.messages ?? []));
-    void refreshConversations();
   };
 
   const handlePartialRevision = async (
@@ -387,182 +322,6 @@ export default function HomePage() {
     }
   };
 
-  const handleHideMessage = async (messageId: string) => {
-    setIsSending(true);
-    setError(null);
-    try {
-      const response = await fetch(`/api/messages/${messageId}/hide`, {
-        method: "POST",
-      });
-      await applyMessagesResponse(response, "Gagal menyembunyikan pesan.");
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Gagal menyembunyikan pesan."
-      );
-    } finally {
-      setIsSending(false);
-    }
-  };
-
-  const handleUnhideMessage = async (messageId: string) => {
-    setIsSending(true);
-    setError(null);
-    try {
-      const response = await fetch(`/api/messages/${messageId}/unhide`, {
-        method: "POST",
-      });
-      await applyMessagesResponse(response, "Gagal menampilkan pesan.");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Gagal menampilkan pesan.");
-    } finally {
-      setIsSending(false);
-    }
-  };
-
-  const handleDeleteMessage = async (messageId: string) => {
-    setIsSending(true);
-    setError(null);
-    try {
-      const response = await fetch(`/api/messages/${messageId}`, {
-        method: "DELETE",
-      });
-      await applyMessagesResponse(response, "Gagal menghapus pesan.");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Gagal menghapus pesan.");
-    } finally {
-      setIsSending(false);
-    }
-  };
-
-  const handleDeleteMessageVersion = async (
-    messageId: string,
-    versionId: string
-  ) => {
-    setIsSending(true);
-    setError(null);
-    try {
-      const response = await fetch(
-        `/api/messages/${messageId}/versions/${versionId}`,
-        { method: "DELETE" }
-      );
-      await applyMessagesResponse(response, "Gagal menghapus versi.");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Gagal menghapus versi.");
-    } finally {
-      setIsSending(false);
-    }
-  };
-
-  const handleLockVersion = async (messageId: string, versionId: string) => {
-    setIsSending(true);
-    setError(null);
-    try {
-      const response = await fetch(`/api/messages/${messageId}/lock-version`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ versionId }),
-      });
-      await applyMessagesResponse(response, "Gagal mengunci versi.");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Gagal mengunci versi.");
-    } finally {
-      setIsSending(false);
-    }
-  };
-
-  const handleCopyMessage = async (content: string) => {
-    try {
-      await navigator.clipboard.writeText(content);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Gagal menyalin pesan.");
-    }
-  };
-
-  const handleShareMessage = async (content: string) => {
-    if (typeof navigator === "undefined") return;
-    if ("share" in navigator) {
-      try {
-        await navigator.share({ text: content });
-        return;
-      } catch (err) {
-        if (err instanceof Error && err.name === "AbortError") return;
-        setError(err instanceof Error ? err.message : "Gagal share pesan.");
-        return;
-      }
-    }
-    await handleCopyMessage(content);
-  };
-
-  const handleShareConversation = async (conversationId: string) => {
-    const conversation = conversations.find(
-      (item) => item.id === conversationId
-    );
-    const baseText = conversation
-      ? `${conversation.title}\n${conversation.lastMessageContent ?? ""}`.trim()
-      : conversationId;
-    if ("share" in navigator) {
-      try {
-        await navigator.share({ text: baseText });
-        return;
-      } catch (err) {
-        if (err instanceof Error && err.name === "AbortError") return;
-        setError(err instanceof Error ? err.message : "Gagal share chat.");
-        return;
-      }
-    }
-    await handleCopyMessage(baseText);
-  };
-
-  const handleTogglePinConversation = async (
-    conversationId: string,
-    pinned: boolean
-  ) => {
-    setIsSending(true);
-    setError(null);
-    try {
-      const response = await fetch(
-        `/api/conversations/${conversationId}/${pinned ? "unpin" : "pin"}`,
-        { method: "POST" }
-      );
-      if (!response.ok) {
-        const data = (await response.json()) as { error?: string };
-        setError(data.error ?? "Gagal memperbarui sematan.");
-        return;
-      }
-      void refreshConversations();
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Gagal memperbarui sematan."
-      );
-    } finally {
-      setIsSending(false);
-    }
-  };
-
-  const handleDeleteConversation = async (conversationId: string) => {
-    setIsSending(true);
-    setError(null);
-    try {
-      const response = await fetch(`/api/conversations/${conversationId}`, {
-        method: "DELETE",
-      });
-      if (!response.ok) {
-        const data = (await response.json()) as { error?: string };
-        setError(data.error ?? "Gagal menghapus chat.");
-        return;
-      }
-      const updated = await refreshConversations();
-      if (activeConversationId === conversationId) {
-        setActiveConversationId(updated[0]?.id ?? null);
-      }
-      setMessages([]);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Gagal menghapus chat.");
-    } finally {
-      setIsSending(false);
-    }
-  };
-
   const handleScroll = (
     scrollTop: number,
     scrollHeight: number,
@@ -583,15 +342,31 @@ export default function HomePage() {
     setIsSidebarOpen(false);
   };
 
-  const handleStartNewChat = () => {
-    setActiveConversationId(null);
-    setMessages([]);
-    setRevisionTargetId(null);
-    setRevisionDraft("");
-    setRegenerateTargetId(null);
+  const handleCreateConversation = async () => {
+    setIsSending(true);
     setError(null);
-    setAutoScroll(false);
-    setIsSidebarOpen(false);
+    try {
+      const response = await fetch("/api/conversations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: "Percakapan Baru" }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        setError(data.error ?? "Gagal membuat percakapan baru.");
+        return;
+      }
+      setMessages([]);
+      setActiveConversationId(data.conversationId);
+      void refreshConversations();
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Gagal membuat percakapan baru."
+      );
+    } finally {
+      setIsSending(false);
+      setIsSidebarOpen(false);
+    }
   };
 
   const activeConversation = useMemo(
@@ -602,10 +377,19 @@ export default function HomePage() {
     [conversations, activeConversationId]
   );
 
-  const isDraftConversation = activeConversationId === null;
+  const handleShareConversation = (id: string) => {};
+  const handleTogglePinConversation = (id: string, pinned: boolean) => {};
+  const handleDeleteConversation = (id: string) => {};
+  const handleCopyMessage = (content: string) => {};
+  const handleShareMessage = (content: string) => {};
+  const handleHideMessage = (id: string) => {};
+  const handleUnhideMessage = (id: string) => {};
+  const handleDeleteMessage = (id: string) => {};
+  const handleDeleteMessageVersion = (messageId: string, versionId: string) => {};
+  const handleLockVersion = (messageId: string, versionId: string) => {};
 
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-950 text-slate-100">
+    <div className="flex min-h-screen bg-slate-950 text-slate-100">
       <ChatSidebar
         items={memoryItems.map((item) => ({
           id: item.id,
@@ -619,8 +403,8 @@ export default function HomePage() {
         isSending={isSending}
         isCollapsed={isSidebarCollapsed}
         isMobileOpen={isSidebarOpen}
-        isDraft={isDraftConversation}
-        onCreate={handleStartNewChat}
+        isDraft={false}
+        onCreate={handleCreateConversation}
         onSelect={handleSelectConversation}
         onToggleCollapse={() => setIsSidebarCollapsed((prev) => !prev)}
         onCloseMobile={() => setIsSidebarOpen(false)}
@@ -629,30 +413,12 @@ export default function HomePage() {
         onDeleteConversation={handleDeleteConversation}
       />
 
-      <div className="relative flex min-h-0 flex-1 flex-col">
-        {isDraftConversation && !isSidebarOpen && (
-          <button
-            type="button"
-            onClick={() => setIsSidebarOpen(true)}
-            className="fixed left-4 top-4 z-50 flex h-9 w-9 items-center justify-center rounded-full border border-slate-800 text-slate-200 transition hover:border-slate-600 lg:hidden"
-            aria-label="Buka sidebar"
-          >
-            <Icon icon="solar:hamburger-menu-linear" className="text-lg" />
-          </button>
-        )}
-        {!isDraftConversation && (
-          <ChatHeader
-            title={activeConversation?.title ?? "Chat Baru"}
-            subtitle=""
-            key={1}
-            // subtitle={
-            //   isDraftConversation
-            //     ? "Mulai dengan menulis prompt pertama Anda."
-            //     : "Tulis prompt atau bab, dan gunakan revisi sebagian atau regenerate total langsung dari respons."
-            // }
-            onToggleSidebar={() => setIsSidebarOpen((prev) => !prev)}
-          />
-        )}
+      <div className="flex flex-1 flex-col">
+        <ChatHeader
+          title={activeConversation?.title ?? "Asisten penulisan novel"}
+          subtitle="Tulis prompt atau bab, dan gunakan revisi sebagian atau regenerate total langsung dari respons."
+          onToggleSidebar={() => setIsSidebarOpen((prev) => !prev)}
+        />
 
         <ChatThread
           messages={messages}
@@ -660,13 +426,6 @@ export default function HomePage() {
           revisionTargetId={revisionTargetId}
           revisionDraft={revisionDraft}
           regenerateTargetId={regenerateTargetId}
-          onCopyMessage={handleCopyMessage}
-          onShareMessage={handleShareMessage}
-          onHideMessage={handleHideMessage}
-          onUnhideMessage={handleUnhideMessage}
-          onDeleteMessage={handleDeleteMessage}
-          onDeleteMessageVersion={handleDeleteMessageVersion}
-          onLockVersion={handleLockVersion}
           onOpenRevision={(messageId) => {
             setRevisionTargetId(messageId);
             setRevisionDraft("");
@@ -689,29 +448,26 @@ export default function HomePage() {
           onScroll={handleScroll}
           messagesContainerRef={messagesContainerRef}
           messagesEndRef={messagesEndRef}
+          onCopyMessage={handleCopyMessage}
+          onShareMessage={handleShareMessage}
+          onHideMessage={handleHideMessage}
+          onUnhideMessage={handleUnhideMessage}
+          onDeleteMessage={handleDeleteMessage}
+          onDeleteMessageVersion={handleDeleteMessageVersion}
+          onLockVersion={handleLockVersion}
         />
 
-        {isDraftConversation ? (
-          <NewChatComposer
-            value={input}
-            isSending={isSending}
-            error={error}
-            onChange={setInput}
-            onSend={sendMessage}
-          />
-        ) : (
-          <ChatComposer
-            value={input}
-            isSending={isSending}
-            error={error}
-            isCompact={isThreadScrolled}
-            isHidden={isComposerHidden}
-            isEmpty={messages.length === 0}
-            onToggleHidden={() => setIsComposerHidden((prev) => !prev)}
-            onChange={setInput}
-            onSend={sendMessage}
-          />
-        )}
+        <ChatComposer
+          value={input}
+          isSending={isSending}
+          error={error}
+          isCompact={isThreadScrolled}
+          isHidden={isComposerHidden}
+          isEmpty={messages.length === 0}
+          onToggleHidden={() => setIsComposerHidden((prev) => !prev)}
+          onChange={setInput}
+          onSend={sendMessage}
+        />
       </div>
     </div>
   );
