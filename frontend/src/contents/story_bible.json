@@ -1,0 +1,29 @@
+{
+  "project": "Context Engine Test",
+  "world_state": {
+    "magic": "Hard / Metal-based",
+    "factions": [
+      "The Council",
+      "Void Walkers"
+    ]
+  },
+  "emotional_tone": [
+    "Dark",
+    "Intense"
+  ],
+  "pacing": "Fast-Paced",
+  "generation_settings": {
+    "min_word_count": 1000
+  },
+  "characters": [
+    {
+      "id": "char_01",
+      "name": "Elara Vance",
+      "age": 24,
+      "role": "Protagonist",
+      "hobby": "Retro Tech Repair",
+      "first_app": "Vol 1, Ch 1",
+      "relationships": {}
+    }
+  ]
+}

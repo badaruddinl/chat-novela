@@ -14,11 +14,13 @@ import { registerRoutes } from "./interfaces/http/routes";
 
 const app = Fastify({ logger: true });
 
+const projectService = new ProjectService(codexClient);
 const conversationService = new ConversationService(conversationRepository);
 const chatService = new ChatService(
   conversationRepository,
   messageRepository,
-  codexClient
+  codexClient,
+  projectService
 );
 const revisionService = new RevisionService(
   conversationRepository,
@@ -26,11 +28,10 @@ const revisionService = new RevisionService(
   codexClient,
   promptBuilder
 );
-const projectService = new ProjectService();
 
 const start = async () => {
   await app.register(multipart);
-  await migrate();
+  // await migrate();
   await registerRoutes(app, {
     chatService,
     conversationService,

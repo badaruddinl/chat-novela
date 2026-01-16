@@ -34,6 +34,17 @@ export async function registerRoutes(app: FastifyInstance, services: Services) {
     return { ok: true };
   });
 
+  app.post("/project/interview", async (request, reply) => {
+    const body = request.body as { message: string };
+    const result = await services.projectService.chat(body.message);
+    return { message: result };
+  });
+
+  app.get("/project/current", async (request, reply) => {
+    const result = await services.projectService.getProject();
+    return result;
+  });
+
   app.get("/conversations", async () => {
     const conversations = await services.conversationService.listConversations();
     return { conversations };

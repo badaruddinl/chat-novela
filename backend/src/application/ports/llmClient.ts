@@ -1,8 +1,8 @@
 export type LlmMessage = {
-  role: "user" | "assistant";
+  role: "user" | "assistant" | "system";
   content: string;
 };
 
 export type LlmClient = {
-  generate(messages: LlmMessage[]): Promise<string>;
+  generate(messages: LlmMessage[], systemPrompt?: string): Promise<string>;
 };

@@ -4,18 +4,18 @@ import { buildSystemPrompt } from "../prompt/promptBuilder";
 const API_URL = "https://api.openai.com/v1/chat/completions";
 
 export const codexClient: LlmClient = {
-  async generate(messages: LlmMessage[]) {
+  async generate(messages: LlmMessage[], systemPrompt?: string) {
     const apiKey = process.env.CODEX_API_KEY;
     if (!apiKey) {
       throw new Error("Missing CODEX_API_KEY environment variable.");
     }
 
     const model = process.env.CODEX_MODEL ?? "gpt-4.1-mini";
-    const systemPrompt = buildSystemPrompt();
+    const prompt = systemPrompt ?? buildSystemPrompt();
 
     const payload = {
       model,
-      messages: [{ role: "system", content: systemPrompt }, ...messages],
+      messages: [{ role: "system", content: prompt }, ...messages],
       temperature: 0.8,
     };
 

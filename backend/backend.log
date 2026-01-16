@@ -1,0 +1,43 @@
+
+> backend@0.1.0 dev
+> tsx watch src/index.ts
+
+{"level":30,"time":1768579142011,"pid":31079,"hostname":"devbox","msg":"Server listening at http://0.0.0.0:4000"}
+{"level":30,"time":1768579227840,"pid":31079,"hostname":"devbox","reqId":"req-1","req":{"method":"POST","url":"/project/initialize","hostname":"localhost:4000","remoteAddress":"127.0.0.1","remotePort":52038},"msg":"incoming request"}
+Initializing project with data: {
+  "project": "Context Engine Test",
+  "world_state": {
+    "magic": "Hard / Metal-based",
+    "factions": [
+      "The Council",
+      "Void Walkers"
+    ]
+  },
+  "emotional_tone": [
+    "Dark",
+    "Intense"
+  ],
+  "pacing": "Fast-Paced",
+  "generation_settings": {
+    "min_word_count": 1000
+  },
+  "characters": [
+    {
+      "id": "char_01",
+      "name": "Elara Vance",
+      "age": 24,
+      "role": "Protagonist",
+      "hobby": "Retro Tech Repair",
+      "first_app": "Vol 1, Ch 1",
+      "relationships": {}
+    }
+  ]
+}
+Writing story_bible.json to /app/frontend/src/contents/story_bible.json
+{"level":30,"time":1768579227852,"pid":31079,"hostname":"devbox","reqId":"req-1","res":{"statusCode":200},"responseTime":11.263865999877453,"msg":"request completed"}
+{"level":30,"time":1768579231112,"pid":31079,"hostname":"devbox","reqId":"req-2","req":{"method":"GET","url":"/project/current","hostname":"localhost:4000","remoteAddress":"127.0.0.1","remotePort":52038},"msg":"incoming request"}
+Loaded bible: Context Engine Test
+{"level":30,"time":1768579231114,"pid":31079,"hostname":"devbox","reqId":"req-2","res":{"statusCode":200},"responseTime":1.807107999920845,"msg":"request completed"}
+{"level":30,"time":1768579231179,"pid":31079,"hostname":"devbox","reqId":"req-3","req":{"method":"GET","url":"/project/current","hostname":"localhost:4000","remoteAddress":"127.0.0.1","remotePort":52038},"msg":"incoming request"}
+Loaded bible: Context Engine Test
+{"level":30,"time":1768579231180,"pid":31079,"hostname":"devbox","reqId":"req-3","res":{"statusCode":200},"responseTime":0.9575169999152422,"msg":"request completed"}

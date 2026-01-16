@@ -1,12 +1,14 @@
 import type { MessageRepository, ConversationRepository } from "../../domain/chat/repositories";
 import type { ApiMessage, ApiMessageVersion } from "./types";
 import type { LlmClient } from "../ports/llmClient";
+import type { ProjectService } from "../project/projectService";
 
 export class ChatService {
   constructor(
     private readonly conversationRepo: ConversationRepository,
     private readonly messageRepo: MessageRepository,
-    private readonly llmClient: LlmClient
+    private readonly llmClient: LlmClient,
+    private readonly projectService?: ProjectService
   ) {}
 
   async sendMessage(params: {
@@ -38,9 +40,30 @@ export class ChatService {
 
     const context = await this.messageRepo.getConversationContext(conversationId, 12);
 
+    let systemPrompt = "You are a creative writing assistant.";
+
+    if (this.projectService) {
+      const { bible, summary } = await this.projectService.getProject();
+      let contextStr = "\n=== STORY CONTEXT ===\n";
+
+      if (summary) {
+        contextStr += `SUMMARY:\n${summary}\n\n`;
+      }
+
+      if (bible) {
+        contextStr += `CHARACTERS:\n${bible.characters.map(c => `- ${c.name} (${c.age}): ${c.role}`).join("\n")}\n\n`;
+        if (bible.world_state) {
+           contextStr += `WORLD:\nMagic: ${bible.world_state.magic}\nFactions: ${bible.world_state.factions.join(", ")}\n\n`;
+        }
+        contextStr += `TONE: ${bible.emotional_tone.join(", ")}\nPACING: ${bible.pacing}\n`;
+      }
+      contextStr += "=====================\nUse this context to assist the user.\n";
+      systemPrompt += contextStr;
+    }
+
     let assistantContent = "";
     try {
-      assistantContent = await this.llmClient.generate(context);
+      assistantContent = await this.llmClient.generate(context, systemPrompt);
     } catch (error) {
       assistantContent =
         error instanceof Error
