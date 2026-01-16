@@ -88,14 +88,14 @@ export default function ImportPage() {
         body: JSON.stringify(analysisResult),
       });
       if (response.ok) {
-        router.push("/");
+        router.push("/editor");
       } else {
         // If backend route missing, just redirect for now
-        router.push("/");
+        router.push("/editor");
       }
     } catch (e) {
       console.error(e);
-      router.push("/");
+      router.push("/editor");
     } finally {
       setIsInitializing(false);
     }

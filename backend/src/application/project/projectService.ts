@@ -8,6 +8,28 @@ export type AnalysisResult = {
   tonePercent: number;
 };
 
+export type StoryBible = {
+  project: string;
+  world_state: {
+    magic: string;
+    factions: string[];
+  };
+  emotional_tone: string[];
+  pacing: string;
+  generation_settings: {
+    min_word_count: number;
+  };
+  characters: Array<{
+    id: string;
+    name: string;
+    age: number;
+    role: string;
+    hobby: string;
+    first_app: string;
+    relationships: Record<string, string>;
+  }>;
+};
+
 export class ProjectService {
   private contentRoot: string;
 
@@ -32,14 +54,40 @@ export class ProjectService {
     };
   }
 
-  async initializeProject(data: AnalysisResult): Promise<void> {
-    const outline = `# Project Outline
+  async initializeProject(data: AnalysisResult | StoryBible): Promise<void> {
+    // Ensure directory exists
+    if (!fs.existsSync(this.contentRoot)) {
+      fs.mkdirSync(this.contentRoot, { recursive: true });
+    }
 
-**Genre:** ${data.genre}
-**Tone:** ${data.tone}
+    if ("world_state" in data) {
+       // It's a StoryBible
+       const bible = data as StoryBible;
+       fs.writeFileSync(path.join(this.contentRoot, "story_bible.json"), JSON.stringify(bible, null, 2));
+
+       const outline = `# ${bible.project}
+
+**Pacing:** ${bible.pacing}
+**Tone:** ${bible.emotional_tone.join(", ")}
+
+## World State
+- Magic: ${bible.world_state.magic}
+- Factions: ${bible.world_state.factions.join(", ")}
 
 ## Characters
-${data.characters}
+${bible.characters.map(c => `- **${c.name}** (${c.age}): ${c.role}`).join("\n")}
+`;
+       fs.writeFileSync(path.join(this.contentRoot, "outline.md"), outline);
+    } else {
+       // It's an AnalysisResult
+       const analysis = data as AnalysisResult;
+        const outline = `# Project Outline
+
+**Genre:** ${analysis.genre}
+**Tone:** ${analysis.tone}
+
+## Characters
+${analysis.characters}
 
 ## Analysis
 Initialized from context analysis.
@@ -47,16 +95,11 @@ Initialized from context analysis.
 
     const rules = `# Project Rules
 
-- Maintain the tone: ${data.tone}
-- Focus on the genre: ${data.genre}
+- Maintain the tone: ${analysis.tone}
+- Focus on the genre: ${analysis.genre}
 `;
-
-    // Ensure directory exists
-    if (!fs.existsSync(this.contentRoot)) {
-      fs.mkdirSync(this.contentRoot, { recursive: true });
-    }
-
     fs.writeFileSync(path.join(this.contentRoot, "outline.md"), outline);
     fs.writeFileSync(path.join(this.contentRoot, "rules.md"), rules);
+    }
   }
 }
