@@ -2,15 +2,37 @@ import type { FastifyInstance } from "fastify";
 import type { ChatService } from "../../application/chat/chatService";
 import type { ConversationService } from "../../application/chat/conversationService";
 import type { RevisionService } from "../../application/chat/revisionService";
+import type { ProjectService } from "../../application/project/projectService";
 
 type Services = {
   chatService: ChatService;
   conversationService: ConversationService;
   revisionService: RevisionService;
+  projectService: ProjectService;
 };
 
 export async function registerRoutes(app: FastifyInstance, services: Services) {
   app.get("/health", async () => ({ ok: true }));
+
+  app.post("/project/analyze", async (request, reply) => {
+    const data = await request.file();
+    if (!data) {
+      reply.code(400);
+      return { error: "File is required" };
+    }
+    const buffer = await data.toBuffer();
+    const result = await services.projectService.analyzeDocument({
+      filename: data.filename,
+      content: buffer,
+    });
+    return result;
+  });
+
+  app.post("/project/initialize", async (request, reply) => {
+    const body = request.body as any;
+    await services.projectService.initializeProject(body);
+    return { ok: true };
+  });
 
   app.get("/conversations", async () => {
     const conversations = await services.conversationService.listConversations();

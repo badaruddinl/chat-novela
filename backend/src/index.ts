@@ -1,5 +1,6 @@
 import "dotenv/config";
 import Fastify from "fastify";
+import multipart from "@fastify/multipart";
 import { migrate } from "./infrastructure/db/migrate";
 import { conversationRepository } from "./infrastructure/repositories/conversationRepository";
 import { messageRepository } from "./infrastructure/repositories/messageRepository";
@@ -8,6 +9,7 @@ import { promptBuilder } from "./infrastructure/prompt/promptBuilder";
 import { ConversationService } from "./application/chat/conversationService";
 import { ChatService } from "./application/chat/chatService";
 import { RevisionService } from "./application/chat/revisionService";
+import { ProjectService } from "./application/project/projectService";
 import { registerRoutes } from "./interfaces/http/routes";
 
 const app = Fastify({ logger: true });
@@ -24,13 +26,16 @@ const revisionService = new RevisionService(
   codexClient,
   promptBuilder
 );
+const projectService = new ProjectService();
 
 const start = async () => {
+  await app.register(multipart);
   await migrate();
   await registerRoutes(app, {
     chatService,
     conversationService,
     revisionService,
+    projectService,
   });
 
   const port = Number(process.env.PORT ?? 4000);
