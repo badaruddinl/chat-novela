@@ -43,7 +43,9 @@ export class ChatService {
     let systemPrompt = "You are a creative writing assistant.";
 
     if (this.projectService) {
-      const { bible, summary } = await this.projectService.getProject();
+      // TODO: Determine projectId from conversation or request context
+      const projectId = "default";
+      const { bible, summary } = await this.projectService.getProject(projectId);
       let contextStr = "\n=== STORY CONTEXT ===\n";
 
       if (summary) {

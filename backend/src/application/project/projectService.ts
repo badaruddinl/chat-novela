@@ -34,18 +34,22 @@ export type StoryBible = {
 };
 
 export class ProjectService {
-  private contentRoot: string;
+  private baseContentRoot: string;
   private llmClient?: LlmClient;
 
   constructor(llmClient?: LlmClient) {
     this.llmClient = llmClient;
-    this.contentRoot =
+    this.baseContentRoot =
       process.env.CONTENT_ROOT ??
       path.resolve(process.cwd(), "..", "frontend", "src", "contents");
   }
 
+  private getProjectRoot(projectId: string = "default"): string {
+    return path.join(this.baseContentRoot, projectId);
+  }
+
   // --- Chat Interview Logic (Existing) ---
-  async chat(message: string): Promise<string> {
+  async chat(message: string, projectId: string = "default"): Promise<string> {
     if (!this.llmClient) {
         // Fallback mock logic if no LLM client
         await new Promise((resolve) => setTimeout(resolve, 1000));
@@ -54,11 +58,16 @@ export class ProjectService {
 
     // Check if user is asking to generate story
     if (message.toLowerCase().startsWith("write") || message.toLowerCase().startsWith("generate")) {
-        return this.generateStorySegment(message);
+        return this.generateStorySegment(message, projectId);
+    }
+
+    const projectRoot = this.getProjectRoot(projectId);
+    if (!fs.existsSync(projectRoot)) {
+        fs.mkdirSync(projectRoot, { recursive: true });
     }
 
     // 1. Load history
-    const historyPath = path.join(this.contentRoot, "chat_history.json");
+    const historyPath = path.join(projectRoot, "chat_history.json");
     let history: LlmMessage[] = [];
     if (fs.existsSync(historyPath)) {
         try {
@@ -69,7 +78,7 @@ export class ProjectService {
     }
 
     // 2. Load current Bible for context
-    const biblePath = path.join(this.contentRoot, "story_bible.json");
+    const biblePath = path.join(projectRoot, "story_bible.json");
     let currentBible = "No story bible yet.";
     if (fs.existsSync(biblePath)) {
         currentBible = fs.readFileSync(biblePath, "utf-8");
@@ -120,12 +129,13 @@ Keep your response conversational and encouraging.
   }
 
   // --- Story Generation Logic (New - Powerful Context) ---
-  async generateStorySegment(instruction: string): Promise<string> {
+  async generateStorySegment(instruction: string, projectId: string = "default"): Promise<string> {
       if (!this.llmClient) return "LLM Client not available.";
 
+      const projectRoot = this.getProjectRoot(projectId);
       // 1. Load Context
-      const biblePath = path.join(this.contentRoot, "story_bible.json");
-      const summaryPath = path.join(this.contentRoot, "story_summary.md");
+      const biblePath = path.join(projectRoot, "story_bible.json");
+      const summaryPath = path.join(projectRoot, "story_summary.md");
 
       let bibleStr = "{}";
       if (fs.existsSync(biblePath)) bibleStr = fs.readFileSync(biblePath, "utf-8");
@@ -256,10 +266,11 @@ New Text: ${newText}
       fs.writeFileSync(biblePath, JSON.stringify(bible, null, 2));
   }
 
-  async getProject(): Promise<{ bible: StoryBible | null; outline: string | null; summary: string | null }> {
-    const biblePath = path.join(this.contentRoot, "story_bible.json");
-    const outlinePath = path.join(this.contentRoot, "outline.md");
-    const summaryPath = path.join(this.contentRoot, "story_summary.md");
+  async getProject(projectId: string = "default"): Promise<{ bible: StoryBible | null; outline: string | null; summary: string | null }> {
+    const projectRoot = this.getProjectRoot(projectId);
+    const biblePath = path.join(projectRoot, "story_bible.json");
+    const outlinePath = path.join(projectRoot, "outline.md");
+    const summaryPath = path.join(projectRoot, "story_summary.md");
 
     let bible: StoryBible | null = null;
     let outline: string | null = null;
@@ -303,18 +314,19 @@ New Text: ${newText}
     };
   }
 
-  async initializeProject(data: AnalysisResult | StoryBible): Promise<void> {
+  async initializeProject(data: AnalysisResult | StoryBible, projectId: string = "default"): Promise<void> {
     console.log("Initializing project with data:", JSON.stringify(data, null, 2));
+    const projectRoot = this.getProjectRoot(projectId);
     // Ensure directory exists
-    if (!fs.existsSync(this.contentRoot)) {
-      fs.mkdirSync(this.contentRoot, { recursive: true });
+    if (!fs.existsSync(projectRoot)) {
+      fs.mkdirSync(projectRoot, { recursive: true });
     }
 
     if ("world_state" in data) {
        // It's a StoryBible
        const bible = data as StoryBible;
-       console.log("Writing story_bible.json to", path.join(this.contentRoot, "story_bible.json"));
-       fs.writeFileSync(path.join(this.contentRoot, "story_bible.json"), JSON.stringify(bible, null, 2));
+       console.log("Writing story_bible.json to", path.join(projectRoot, "story_bible.json"));
+       fs.writeFileSync(path.join(projectRoot, "story_bible.json"), JSON.stringify(bible, null, 2));
 
        const outline = `# ${bible.project}
 
@@ -328,10 +340,10 @@ New Text: ${newText}
 ## Characters
 ${bible.characters.map(c => `- **${c.name}** (${c.age}): ${c.role}`).join("\n")}
 `;
-       fs.writeFileSync(path.join(this.contentRoot, "outline.md"), outline);
+       fs.writeFileSync(path.join(projectRoot, "outline.md"), outline);
 
        // Initialize empty summary
-       fs.writeFileSync(path.join(this.contentRoot, "story_summary.md"), "Story initialized.");
+       fs.writeFileSync(path.join(projectRoot, "story_summary.md"), "Story initialized.");
 
     } else {
        // It's an AnalysisResult
@@ -353,8 +365,8 @@ Initialized from context analysis.
 - Maintain the tone: ${analysis.tone}
 - Focus on the genre: ${analysis.genre}
 `;
-    fs.writeFileSync(path.join(this.contentRoot, "outline.md"), outline);
-    fs.writeFileSync(path.join(this.contentRoot, "rules.md"), rules);
+    fs.writeFileSync(path.join(projectRoot, "outline.md"), outline);
+    fs.writeFileSync(path.join(projectRoot, "rules.md"), rules);
     }
   }
 }

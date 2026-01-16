@@ -30,18 +30,21 @@ export async function registerRoutes(app: FastifyInstance, services: Services) {
 
   app.post("/project/initialize", async (request, reply) => {
     const body = request.body as any;
-    await services.projectService.initializeProject(body);
+    const projectId = (request.query as { projectId?: string }).projectId || "default";
+    await services.projectService.initializeProject(body, projectId);
     return { ok: true };
   });
 
   app.post("/project/interview", async (request, reply) => {
-    const body = request.body as { message: string };
-    const result = await services.projectService.chat(body.message);
+    const body = request.body as { message: string; projectId?: string };
+    const projectId = body.projectId || "default";
+    const result = await services.projectService.chat(body.message, projectId);
     return { message: result };
   });
 
   app.get("/project/current", async (request, reply) => {
-    const result = await services.projectService.getProject();
+    const projectId = (request.query as { projectId?: string }).projectId || "default";
+    const result = await services.projectService.getProject(projectId);
     return result;
   });
 
